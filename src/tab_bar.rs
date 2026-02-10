@@ -4,23 +4,22 @@
 //!
 //! *This API requires the following crate features to be activated: `tab_bar`*
 
-pub mod tab_content;
-pub mod tab_label;
-pub mod tab_row;
-
-use iced::advanced::{mouse, renderer, Clipboard, Layout, Shell, Widget};
+use iced::advanced::{
+    layout::{Limits, Node},
+    mouse, renderer,
+    widget::{tree, Operation, Tree},
+    Clipboard, Layout, Shell, Widget,
+};
 use iced::widget::{scrollable, text, Scrollable};
 use iced::{Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Shadow};
 
 use crate::status::{Status, StyleFn};
 use crate::style::{Catalog, Style};
-use iced::advanced::layout::{Limits, Node};
-use iced::advanced::widget::{tree, Operation, Tree};
+use crate::tab;
+use crate::tab::TabLabel;
 use iced::mouse::Cursor;
 use std::marker::PhantomData;
 use std::sync::Arc;
-pub use tab_content::TabBarContent;
-pub use tab_label::TabLabel;
 
 /// The default icon size.
 const DEFAULT_ICON_SIZE: f32 = 16.0;
@@ -370,8 +369,8 @@ where
         scrollable::Direction::Horizontal(scrollbar)
     }
 
-    fn tab_content(&self) -> TabBarContent<'_, 'a, Message, TabId, Theme, Renderer> {
-        TabBarContent::new(
+    fn tab_content(&self) -> tab::Tab<'_, 'a, Message, TabId, Theme, Renderer> {
+        tab::Tab::new(
             self.tab_labels.clone(),
             self.tab_statuses.clone(),
             self.tab_indices.clone(),
@@ -577,9 +576,7 @@ where
         if let Some(child_tree) = state.children.get_mut(0) {
             let content_tree = child_tree.children.get_mut(0);
             if let Some(content_tree) = content_tree {
-                let content_state = content_tree
-                    .state
-                    .downcast_ref::<tab_content::TabBarContentState>();
+                let content_state = content_tree.state.downcast_ref::<tab::TabBarContentState>();
                 self.tab_statuses.clone_from(&content_state.tab_statuses);
             }
         }

@@ -1,83 +1,118 @@
-//! A widget that displays a row of tabs for the [`TabBar`](super::TabBar).
-//!
-//! *This API requires the following crate features to be activated: `tab_bar`*
+//! Content widget for [`TabBar`](super::TabBar) (handles selection/close in content-space for Scrollable).
 
+use crate::status::Status;
+use crate::style::Catalog;
+use crate::tab_bar::Position;
 use iced::advanced::{
     layout::{Limits, Node},
     renderer,
-    widget::{
-        text::{LineHeight, Wrapping},
-        Operation, Tree,
-    },
-    Layout, Widget,
+    widget::{tree, Operation, Tree},
+    Clipboard, Layout, Shell, Widget,
 };
 use iced::widget::{text, Column, Row, Text};
 use iced::{
     alignment::{Horizontal, Vertical},
-    Alignment, Element, Font, Length, Padding, Pixels, Point, Rectangle, Size,
+    mouse, touch, Alignment, Element, Event, Font, Length, Padding, Pixels, Point, Rectangle, Size,
 };
-
-use super::tab_label::TabLabel;
-use super::Position;
-use crate::status::Status;
-use crate::style::Catalog;
 use iced_fonts::{codicon::advanced_text, CODICON_FONT};
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 /// Offset added to icon/text size during layout to prevent clipping.
 const LAYOUT_SIZE_OFFSET: f32 = 1.0;
 /// Multiplier for close button hit area (larger than icon for easier clicking).
 const CLOSE_HIT_AREA_MULTIPLIER: f32 = 1.3;
 
-/// A row of tabs for the [`TabBar`](super::TabBar).
+/// A [`TabLabel`] showing an icon and/or a text on a tab
+/// on a [`TabBar`](super::TabBar).
 #[allow(missing_debug_implementations)]
-pub struct TabRow<'a, 'b, Message, Theme = iced::Theme, Renderer = iced::Renderer>
+#[derive(Clone, Hash)]
+pub enum TabLabel {
+    /// A [`TabLabel`] showing only an icon on the tab.
+    Icon(char),
+
+    /// A [`TabLabel`] showing only a text on the tab.
+    Text(String),
+
+    /// A [`TabLabel`] showing an icon and a text on the tab.
+    IconText(char, String),
+    // TODO: Support any element as a label.
+}
+
+impl From<char> for TabLabel {
+    fn from(value: char) -> Self {
+        Self::Icon(value)
+    }
+}
+
+impl From<&str> for TabLabel {
+    fn from(value: &str) -> Self {
+        Self::Text(value.to_owned())
+    }
+}
+
+impl From<String> for TabLabel {
+    fn from(value: String) -> Self {
+        Self::Text(value)
+    }
+}
+
+impl From<(char, &str)> for TabLabel {
+    fn from(value: (char, &str)) -> Self {
+        Self::IconText(value.0, value.1.to_owned())
+    }
+}
+
+impl From<(char, String)> for TabLabel {
+    fn from(value: (char, String)) -> Self {
+        Self::IconText(value.0, value.1)
+    }
+}
+
+/// State stored in `TabBarContent`'s tree for persisting `tab_statuses`.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct TabBarContentState {
+    pub(crate) tab_statuses: Vec<(Option<Status>, Option<bool>)>,
+}
+
+/// Content widget for the tab bar (handles selection/close in content-space for Scrollable).
+#[allow(missing_debug_implementations)]
+pub(crate) struct Tab<'a, 'b, Message, TabId, Theme = iced::Theme, Renderer = iced::Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer,
     Theme: Catalog,
+    TabId: Eq + Clone,
 {
-    /// The tab labels.
-    tab_labels: Vec<TabLabel>,
-    /// The tab statuses.
-    tab_statuses: Vec<(Option<Status>, Option<bool>)>,
-    /// The icon size.
-    icon_size: f32,
-    /// The text size.
-    text_size: f32,
-    /// The close icon size.
-    close_size: f32,
-    /// The padding.
-    padding: Padding,
-    /// The spacing.
-    spacing: Pixels,
-    /// The icon font.
-    font: Option<Font>,
-    /// The text font.
-    text_font: Option<Font>,
-    /// The height.
-    height: Length,
-    /// The icon position.
-    position: Position,
-    /// Whether the close button is shown.
-    has_close: bool,
-    /// The style class for the tab bar.
-    class: &'a <Theme as Catalog>::Class<'b>,
-    #[allow(clippy::missing_docs_in_private_items)]
-    _message: PhantomData<Message>,
-    #[allow(clippy::missing_docs_in_private_items)]
+    pub(crate) tab_labels: Vec<TabLabel>,
+    pub(crate) tab_statuses: Vec<(Option<Status>, Option<bool>)>,
+    pub(crate) tab_indices: Vec<TabId>,
+    pub(crate) icon_size: f32,
+    pub(crate) text_size: f32,
+    pub(crate) close_size: f32,
+    pub(crate) padding: Padding,
+    pub(crate) spacing: Pixels,
+    pub(crate) font: Option<Font>,
+    pub(crate) text_font: Option<Font>,
+    pub(crate) height: Length,
+    pub(crate) position: Position,
+    pub(crate) has_close: bool,
+    pub(crate) on_select: Arc<dyn Fn(TabId) -> Message>,
+    pub(crate) on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
+    pub(crate) active_tab: usize,
+    pub(crate) class: &'a <Theme as Catalog>::Class<'b>,
     _renderer: PhantomData<Renderer>,
 }
 
-impl<'a, 'b, Message, Theme, Renderer> TabRow<'a, 'b, Message, Theme, Renderer>
+impl<'a, 'b, Message, TabId, Theme, Renderer> Tab<'a, 'b, Message, TabId, Theme, Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
     Theme: Catalog + text::Catalog,
+    TabId: Eq + Clone,
 {
-    /// Creates a new [`TabRow`] with the given tab data.
-    #[must_use]
-    pub fn new(
+    pub(crate) fn new(
         tab_labels: Vec<TabLabel>,
         tab_statuses: Vec<(Option<Status>, Option<bool>)>,
+        tab_indices: Vec<TabId>,
         icon_size: f32,
         text_size: f32,
         close_size: f32,
@@ -88,11 +123,15 @@ where
         height: Length,
         position: Position,
         has_close: bool,
+        active_tab: usize,
+        on_select: Arc<dyn Fn(TabId) -> Message>,
+        on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
         class: &'a <Theme as Catalog>::Class<'b>,
     ) -> Self {
         Self {
             tab_labels,
             tab_statuses,
+            tab_indices,
             icon_size,
             text_size,
             close_size,
@@ -103,8 +142,10 @@ where
             height,
             position,
             has_close,
+            on_select,
+            on_close,
+            active_tab,
             class,
-            _message: PhantomData,
             _renderer: PhantomData,
         }
     }
@@ -269,11 +310,12 @@ where
     }
 }
 
-impl<Message, Theme, Renderer> Widget<Message, Theme, Renderer>
-    for TabRow<'_, '_, Message, Theme, Renderer>
+impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
+    for Tab<'_, '_, Message, TabId, Theme, Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
     Theme: Catalog + text::Catalog,
+    TabId: Eq + Clone,
 {
     fn size(&self) -> Size<Length> {
         Size::new(Length::Shrink, self.height)
@@ -303,7 +345,7 @@ where
         theme: &Theme,
         _style: &renderer::Style,
         layout: Layout<'_>,
-        cursor: iced::mouse::Cursor,
+        cursor: mouse::Cursor,
         viewport: &Rectangle,
     ) {
         for ((i, tab), tab_layout) in self.tab_labels.iter().enumerate().zip(layout.children()) {
@@ -326,8 +368,23 @@ where
         }
     }
 
+    fn tag(&self) -> tree::Tag {
+        tree::Tag::of::<TabBarContentState>()
+    }
+
+    fn state(&self) -> tree::State {
+        tree::State::new(TabBarContentState {
+            tab_statuses: self.tab_statuses.clone(),
+        })
+    }
+
     fn children(&self) -> Vec<Tree> {
         vec![Tree::new(Element::new(self.row_element()))]
+    }
+
+    fn diff(&self, tree: &mut Tree) {
+        let content = Element::new(self.row_element());
+        tree.diff_children(std::slice::from_ref(&content));
     }
 
     fn operate(
@@ -343,16 +400,147 @@ where
                 let row = self.row_element();
                 let mut element = Element::new(row);
                 tab_tree.diff(element.as_widget_mut());
-                // layout is the Row's layout (TabRow's layout() returns Row's layout)
                 element
                     .as_widget_mut()
                     .operate(tab_tree, layout, renderer, operation);
             }
         });
     }
+
+    fn update(
+        &mut self,
+        state: &mut Tree,
+        event: &Event,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &Renderer,
+        clipboard: &mut dyn Clipboard,
+        shell: &mut Shell<'_, Message>,
+        viewport: &Rectangle,
+    ) {
+        let content_state = state.state.downcast_mut::<TabBarContentState>();
+        content_state.tab_statuses.clone_from(&self.tab_statuses);
+
+        let row = self.row_element();
+        let mut element = Element::new(row);
+        let tab_tree = if let Some(child_tree) = state.children.get_mut(0) {
+            child_tree.diff(element.as_widget_mut());
+            child_tree
+        } else {
+            let child_tree = Tree::new(element.as_widget());
+            state.children.insert(0, child_tree);
+            &mut state.children[0]
+        };
+
+        element.as_widget_mut().update(
+            tab_tree, event, layout, cursor, renderer, clipboard, shell, viewport,
+        );
+
+        let tab_layouts: Vec<_> = layout.children().collect();
+
+        match event {
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+            | Event::Touch(touch::Event::FingerPressed { .. }) => {
+                if !shell.is_event_captured()
+                    && cursor
+                        .position()
+                        .is_some_and(|pos| layout.bounds().contains(pos))
+                {
+                    let tabs_map: Vec<bool> = tab_layouts
+                        .iter()
+                        .map(|tab_layout| {
+                            cursor
+                                .position()
+                                .is_some_and(|pos| tab_layout.bounds().contains(pos))
+                        })
+                        .collect();
+
+                    if let Some(new_selected) = tabs_map.iter().position(|b| *b) {
+                        let tab_layout = tab_layouts.get(new_selected).expect(
+                            "TabBarContent: Layout should have a tab layout at the selected index",
+                        );
+                        let message = if let Some(on_close) = self.on_close.as_ref() {
+                            let cross_layout = tab_layout
+                                .children()
+                                .nth(1)
+                                .expect("TabBarContent: Layout should have a close layout");
+                            if cursor
+                                .position()
+                                .is_some_and(|pos| cross_layout.bounds().contains(pos))
+                            {
+                                on_close(self.tab_indices[new_selected].clone())
+                            } else {
+                                (self.on_select)(self.tab_indices[new_selected].clone())
+                            }
+                        } else {
+                            (self.on_select)(self.tab_indices[new_selected].clone())
+                        };
+                        shell.publish(message);
+                        shell.capture_event();
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        let mut request_redraw = false;
+        for ((i, _tab), tab_layout) in self.tab_labels.iter().enumerate().zip(&tab_layouts) {
+            let active_idx = self.active_tab;
+            let tab_status = content_state
+                .tab_statuses
+                .get_mut(i)
+                .expect("Should have a status.");
+
+            let current_status = if cursor.is_over(tab_layout.bounds()) {
+                Status::Hovered
+            } else if i == active_idx {
+                Status::Active
+            } else {
+                Status::Disabled
+            };
+
+            let mut is_cross_hovered = None;
+            if self.has_close {
+                let mut tab_children = tab_layout.children();
+                if let Some(cross_layout) = tab_children.next_back() {
+                    is_cross_hovered = Some(cursor.is_over(cross_layout.bounds()));
+                }
+            }
+
+            if tab_status.0.is_some_and(|status| status != current_status)
+                || tab_status.1 != is_cross_hovered
+            {
+                *tab_status = (Some(current_status), is_cross_hovered);
+                request_redraw = true;
+            }
+        }
+
+        if request_redraw {
+            shell.request_redraw();
+        }
+    }
+
+    fn mouse_interaction(
+        &self,
+        state: &Tree,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        viewport: &Rectangle,
+        renderer: &Renderer,
+    ) -> mouse::Interaction {
+        let row = self.row_element();
+        let element = Element::new(row);
+        let tab_tree = state
+            .children
+            .first()
+            .expect("TabBarContent: Should have Row tree");
+
+        element
+            .as_widget()
+            .mouse_interaction(tab_tree, layout, cursor, viewport, renderer)
+    }
 }
 
-/// Draws a single tab.
 #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
 fn draw_tab<Theme, Renderer>(
     renderer: &mut Renderer,
@@ -362,7 +550,7 @@ fn draw_tab<Theme, Renderer>(
     position: Position,
     theme: &Theme,
     class: &<Theme as Catalog>::Class<'_>,
-    _cursor: iced::mouse::Cursor,
+    _cursor: mouse::Cursor,
     icon_data: (Font, f32),
     text_data: (Font, f32),
     close_size: f32,
@@ -371,7 +559,7 @@ fn draw_tab<Theme, Renderer>(
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
     Theme: Catalog + text::Catalog,
 {
-    use iced::widget::text;
+    use iced::advanced::widget::text::{LineHeight, Wrapping};
     use iced::{Background, Border, Color, Shadow};
 
     fn icon_bound_rectangle(item: Option<Layout<'_>>) -> Rectangle {
