@@ -9,7 +9,7 @@ pub mod tab_label;
 pub mod tab_row;
 
 use iced::advanced::{mouse, renderer, Clipboard, Layout, Shell, Widget};
-use iced::widget::{container, scrollable, text, Container, Scrollable};
+use iced::widget::{scrollable, text, Scrollable};
 use iced::{Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Shadow};
 
 use crate::status::{Status, StyleFn};
@@ -88,8 +88,6 @@ where
     on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
     /// The width of the [`TabBar`].
     width: Length,
-    /// The width of the tabs of the [`TabBar`].
-    tab_width: Length,
     /// The height of the [`TabBar`].
     height: Length,
     /// The maximum height of the [`TabBar`].
@@ -135,7 +133,7 @@ pub enum Position {
 impl<'a, Message, TabId, Theme, Renderer> TabBar<'a, Message, TabId, Theme, Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: Catalog + text::Catalog + container::Catalog + scrollable::Catalog,
+    Theme: Catalog + text::Catalog + scrollable::Catalog,
     TabId: Eq + Clone,
 {
     /// Creates a new [`TabBar`] with the index of the selected tab and a specified
@@ -171,7 +169,6 @@ where
             on_select: Arc::new(on_select),
             on_close: None,
             width: Length::Fill,
-            tab_width: Length::Fill,
             height: Length::Shrink,
             max_height: u32::MAX as f32,
             icon_size: DEFAULT_ICON_SIZE,
@@ -322,13 +319,6 @@ where
         self
     }
 
-    /// Sets the width of a tab on the [`TabBar`].
-    #[must_use]
-    pub fn tab_width(mut self, width: Length) -> Self {
-        self.tab_width = width;
-        self
-    }
-
     /// Sets up the active tab on the [`TabBar`].
     ///
     /// If the given `TabId` is not found, the active tab index remains unchanged.
@@ -380,10 +370,6 @@ where
         scrollable::Direction::Horizontal(scrollbar)
     }
 
-    fn tab_width_fills(&self) -> bool {
-        matches!(self.tab_width, Length::Fill | Length::FillPortion(_))
-    }
-
     fn tab_content(&self) -> TabBarContent<'_, 'a, Message, TabId, Theme, Renderer> {
         TabBarContent::new(
             self.tab_labels.clone(),
@@ -397,7 +383,6 @@ where
             self.font,
             self.text_font,
             self.height,
-            self.tab_width,
             self.position,
             self.on_close.is_some(),
             self.active_tab
@@ -408,22 +393,14 @@ where
         )
     }
 
-    /// Returns the inner element (Container or Scrollable wrapping TabBarContent).
+    /// Returns the inner element (Scrollable wrapping TabBarContent).
     pub(crate) fn wrapper_element(&self) -> Element<Message, Theme, Renderer> {
         let content = self.tab_content();
-        if self.tab_width_fills() {
-            Element::new(
-                Container::new(Element::new(content))
-                    .width(Length::Fill)
-                    .height(self.height),
-            )
-        } else {
-            Element::new(
-                Scrollable::with_direction(Element::new(content), self.scrollbar_direction())
-                    .width(self.width)
-                    .height(self.height),
-            )
-        }
+        Element::new(
+            Scrollable::with_direction(Element::new(content), self.scrollbar_direction())
+                .width(self.width)
+                .height(self.height),
+        )
     }
 }
 
@@ -432,7 +409,7 @@ impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
     for TabBar<'_, Message, TabId, Theme, Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
+    Theme: Catalog + text::Catalog + scrollable::Catalog,
     TabId: Eq + Clone,
 {
     fn size(&self) -> iced::Size<Length> {
@@ -550,32 +527,28 @@ where
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
-        let transformed_event = if self.tab_width_fills() {
-            None
-        } else {
-            match event {
-                Event::Mouse(mouse::Event::WheelScrolled { delta }) => {
-                    let delta_x = match delta {
-                        mouse::ScrollDelta::Lines { y, .. } => {
-                            *y * VERTICAL_TO_HORIZONTAL_SCROLL_FACTOR
-                        }
-                        mouse::ScrollDelta::Pixels { y, .. } => *y,
-                    };
-                    if delta_x != 0.0
-                        && cursor
-                            .position()
-                            .is_some_and(|p| layout.bounds().contains(p))
-                    {
-                        let modified = mouse::ScrollDelta::Pixels { x: delta_x, y: 0.0 };
-                        Some(Event::Mouse(mouse::Event::WheelScrolled {
-                            delta: modified,
-                        }))
-                    } else {
-                        None
+        let transformed_event = match event {
+            Event::Mouse(mouse::Event::WheelScrolled { delta }) => {
+                let delta_x = match delta {
+                    mouse::ScrollDelta::Lines { y, .. } => {
+                        *y * VERTICAL_TO_HORIZONTAL_SCROLL_FACTOR
                     }
+                    mouse::ScrollDelta::Pixels { y, .. } => *y,
+                };
+                if delta_x != 0.0
+                    && cursor
+                        .position()
+                        .is_some_and(|p| layout.bounds().contains(p))
+                {
+                    let modified = mouse::ScrollDelta::Pixels { x: delta_x, y: 0.0 };
+                    Some(Event::Mouse(mouse::Event::WheelScrolled {
+                        delta: modified,
+                    }))
+                } else {
+                    None
                 }
-                _ => None,
             }
+            _ => None,
         };
 
         let event_ref = transformed_event.as_ref().unwrap_or(event);
@@ -602,11 +575,7 @@ where
 
         // Sync tab_statuses from TabBarContent's tree state (correct cursor for hover in both layouts)
         if let Some(child_tree) = state.children.get_mut(0) {
-            let content_tree = if self.tab_width_fills() {
-                Some(child_tree)
-            } else {
-                child_tree.children.get_mut(0)
-            };
+            let content_tree = child_tree.children.get_mut(0);
             if let Some(content_tree) = content_tree {
                 let content_state = content_tree
                     .state
@@ -639,7 +608,7 @@ impl<'a, Message, TabId, Theme, Renderer> From<TabBar<'a, Message, TabId, Theme,
     for Element<'a, Message, Theme, Renderer>
 where
     Renderer: 'a + renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: 'a + Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
+    Theme: 'a + Catalog + text::Catalog + scrollable::Catalog,
     Message: 'a,
     TabId: 'a + Eq + Clone,
 {

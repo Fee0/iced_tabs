@@ -4,7 +4,7 @@
 
 use iced::{
     widget::{toggler, Button, Column, Row, Text, TextInput},
-    Alignment, Element, Length,
+    Alignment, Element,
 };
 
 use iced_fonts::CODICON_FONT_BYTES;
@@ -116,7 +116,6 @@ impl TabBarExample {
                     )
                     .set_active_tab(&self.active_tab)
                     .on_close(Message::TabClosed)
-                    .tab_width(Length::Shrink)
                     .spacing(5.0)
                     .padding(5.0)
                     .text_size(32.0)

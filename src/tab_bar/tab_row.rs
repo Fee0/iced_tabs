@@ -56,8 +56,6 @@ where
     text_font: Option<Font>,
     /// The height.
     height: Length,
-    /// The tab width.
-    tab_width: Length,
     /// The icon position.
     position: Position,
     /// Whether the close button is shown.
@@ -88,7 +86,6 @@ where
         font: Option<Font>,
         text_font: Option<Font>,
         height: Length,
-        tab_width: Length,
         position: Position,
         has_close: bool,
         class: &'a <Theme as Catalog>::Class<'b>,
@@ -104,7 +101,6 @@ where
             font,
             text_font,
             height,
-            tab_width,
             position,
             has_close,
             class,
@@ -234,12 +230,12 @@ where
                                 column
                             }
                         }
-                        .width(self.tab_width)
+                        .width(Length::Shrink)
                         .height(self.height),
                     )
                     .align_y(Alignment::Center)
                     .padding(self.padding)
-                    .width(self.tab_width);
+                    .width(Length::Shrink);
 
                 if self.has_close {
                     let (close_content, close_font, close_shaping) = advanced_text::close();
@@ -266,7 +262,7 @@ where
 
                 row.push(label_row)
             })
-            .width(self.tab_width)
+            .width(Length::Shrink)
             .height(self.height)
             .spacing(self.spacing)
             .align_y(Alignment::Center)
@@ -280,7 +276,7 @@ where
     Theme: Catalog + text::Catalog,
 {
     fn size(&self) -> Size<Length> {
-        Size::new(self.tab_width, self.height)
+        Size::new(Length::Shrink, self.height)
     }
 
     fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
@@ -297,7 +293,7 @@ where
 
         element
             .as_widget_mut()
-            .layout(tab_tree, renderer, &limits.width(self.tab_width).loose())
+            .layout(tab_tree, renderer, &limits.width(Length::Shrink).loose())
     }
 
     fn draw(

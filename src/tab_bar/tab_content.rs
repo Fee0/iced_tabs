@@ -50,7 +50,6 @@ where
     font: Option<Font>,
     text_font: Option<Font>,
     height: Length,
-    tab_width: Length,
     position: Position,
     has_close: bool,
     on_select: Arc<dyn Fn(TabId) -> Message>,
@@ -81,7 +80,6 @@ where
         font: Option<Font>,
         text_font: Option<Font>,
         height: Length,
-        tab_width: Length,
         position: Position,
         has_close: bool,
         active_tab: usize,
@@ -101,7 +99,6 @@ where
             font,
             text_font,
             height,
-            tab_width,
             position,
             has_close,
             on_select,
@@ -124,7 +121,6 @@ where
             self.font,
             self.text_font,
             self.height,
-            self.tab_width,
             self.position,
             self.has_close,
             self.class,
@@ -140,7 +136,7 @@ where
     TabId: Eq + Clone,
 {
     fn size(&self) -> Size<Length> {
-        Size::new(self.tab_width, self.height)
+        Size::new(Length::Shrink, self.height)
     }
 
     fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
@@ -157,7 +153,7 @@ where
 
         element
             .as_widget_mut()
-            .layout(tab_tree, renderer, &limits.width(self.tab_width).loose())
+            .layout(tab_tree, renderer, &limits.width(Length::Shrink).loose())
     }
 
     fn draw(
@@ -249,7 +245,6 @@ where
             self.font,
             self.text_font,
             self.height,
-            self.tab_width,
             self.position,
             self.has_close,
             self.class,
