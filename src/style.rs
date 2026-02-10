@@ -1,15 +1,13 @@
-//! Displays a [`TabBar`](crate::widget::tab_bar::TabBar) to select the content
-//! to be displayed.
+//! Style and theme for the [`TabBar`](crate::TabBar).
 //!
-//! You have to manage the logic to show the contend by yourself or you may want
-//! to use the [`Tabs`](crate::widget::tabs::Tabs) widget instead.
+//! You have to manage the logic to show the content yourself.
 //!
 //! *This API requires the following crate features to be activated: `tab_bar`*
 
 use crate::status::{Status, StyleFn};
 use iced::{border::Radius, Background, Color, Theme};
 
-/// The appearance of a [`TabBar`](crate::widget::tab_bar::TabBar).
+/// The appearance of a [`TabBar`](crate::TabBar).
 #[derive(Clone, Copy, Debug)]
 pub struct Style {
     /// The background of the tab bar.
@@ -63,7 +61,7 @@ impl Default for Style {
         }
     }
 }
-/// The Catalog of a [`TabBar`](crate::widget::tab_bar::TabBar).
+/// The Catalog of a [`TabBar`](crate::TabBar).
 pub trait Catalog {
     ///Style for the trait to use.
     type Class<'a>;
@@ -87,7 +85,7 @@ impl Catalog for Theme {
     }
 }
 
-/// The primary theme of a [`TabBar`](crate::widget::tab_bar::TabBar).
+/// The primary theme of a [`TabBar`](crate::TabBar).
 #[must_use]
 pub fn primary(theme: &Theme, status: Status) -> Style {
     let mut base = Style::default();
@@ -110,7 +108,7 @@ pub fn primary(theme: &Theme, status: Status) -> Style {
     base
 }
 
-/// The dark theme of a [`TabBar`](crate::widget::tab_bar::TabBar).
+/// The dark theme of a [`TabBar`](crate::TabBar).
 #[must_use]
 pub fn dark(_theme: &Theme, status: Status) -> Style {
     let mut base = Style {
@@ -128,7 +126,7 @@ pub fn dark(_theme: &Theme, status: Status) -> Style {
     base
 }
 
-/// The red theme of a [`TabBar`](crate::widget::tab_bar::TabBar).
+/// The red theme of a [`TabBar`](crate::TabBar).
 #[must_use]
 pub fn red(_theme: &Theme, status: Status) -> Style {
     let mut base = Style {
@@ -149,7 +147,7 @@ pub fn red(_theme: &Theme, status: Status) -> Style {
     base
 }
 
-/// The blue theme of a [`TabBar`](crate::widget::tab_bar::TabBar).
+/// The blue theme of a [`TabBar`](crate::TabBar).
 #[must_use]
 pub fn blue(_theme: &Theme, status: Status) -> Style {
     let mut base = Style {
@@ -168,7 +166,7 @@ pub fn blue(_theme: &Theme, status: Status) -> Style {
     base
 }
 
-/// The green theme of a [`TabBar`](crate::widget::tab_bar::TabBar).
+/// The green theme of a [`TabBar`](crate::TabBar).
 #[must_use]
 pub fn green(_theme: &Theme, status: Status) -> Style {
     let mut base = Style {
@@ -192,7 +190,7 @@ pub fn green(_theme: &Theme, status: Status) -> Style {
     base
 }
 
-/// The purple theme of a [`TabBar`](crate::widget::tab_bar::TabBar).
+/// The purple theme of a [`TabBar`](crate::TabBar).
 #[must_use]
 pub fn purple(_theme: &Theme, status: Status) -> Style {
     let mut base = Style {

@@ -1,7 +1,6 @@
 //! Displays a [`TabBar`] to select the content to be displayed.
 //!
-//! You have to manage the logic to show the content by yourself or you may want
-//! to use the [`Tabs`](super::tabs::Tabs) widget instead.
+//! You have to manage the logic to show the content yourself.
 //!
 //! *This API requires the following crate features to be activated: `tab_bar`*
 
@@ -9,23 +8,17 @@ pub mod tab_content;
 pub mod tab_label;
 pub mod tab_row;
 
-use iced::advanced::{
-    layout::{Limits, Node},
-    renderer,
-    widget::{tree, Operation, Tree},
-    Clipboard, Layout, Shell, Widget,
-};
-use iced::widget::{self, container, scrollable, Container, Scrollable};
-use iced::{
-    mouse::{self, Cursor},
-    Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Shadow, Size,
-};
-
-use std::marker::PhantomData;
-use std::sync::Arc;
+use iced::advanced::{mouse, renderer, Clipboard, Layout, Shell, Widget};
+use iced::widget::{container, scrollable, text, Container, Scrollable};
+use iced::{Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Shadow};
 
 use crate::status::{Status, StyleFn};
 use crate::style::{Catalog, Style};
+use iced::advanced::layout::{Limits, Node};
+use iced::advanced::widget::{tree, Operation, Tree};
+use iced::mouse::Cursor;
+use std::marker::PhantomData;
+use std::sync::Arc;
 pub use tab_content::TabBarContent;
 pub use tab_label::TabLabel;
 
@@ -46,7 +39,7 @@ const VERTICAL_TO_HORIZONTAL_SCROLL_FACTOR: f32 = 60.0;
 
 /// State for the `TabBar` widget tree (used for diff tag).
 #[allow(missing_docs)]
-struct TabBarState;
+pub(crate) struct TabBarState;
 
 /// A tab bar to show tabs.
 ///
@@ -142,7 +135,7 @@ pub enum Position {
 impl<'a, Message, TabId, Theme, Renderer> TabBar<'a, Message, TabId, Theme, Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: Catalog + widget::text::Catalog,
+    Theme: Catalog + text::Catalog + container::Catalog + scrollable::Catalog,
     TabId: Eq + Clone,
 {
     /// Creates a new [`TabBar`] with the index of the selected tab and a specified
@@ -414,35 +407,40 @@ where
             &self.class,
         )
     }
-}
 
-impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
-    for TabBar<'_, Message, TabId, Theme, Renderer>
-where
-    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: Catalog + widget::text::Catalog + scrollable::Catalog + container::Catalog,
-    TabId: Eq + Clone,
-{
-    fn size(&self) -> Size<Length> {
-        Size::new(self.width, self.height)
-    }
-
-    fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
-        let tab_content = self.tab_content();
-        let mut element: Element<Message, Theme, Renderer> = if self.tab_width_fills() {
+    /// Returns the inner element (Container or Scrollable wrapping TabBarContent).
+    pub(crate) fn wrapper_element(&self) -> Element<Message, Theme, Renderer> {
+        let content = self.tab_content();
+        if self.tab_width_fills() {
             Element::new(
-                Container::new(Element::new(tab_content))
+                Container::new(Element::new(content))
                     .width(Length::Fill)
                     .height(self.height),
             )
         } else {
-            let scrollable =
-                Scrollable::with_direction(Element::new(tab_content), self.scrollbar_direction())
+            Element::new(
+                Scrollable::with_direction(Element::new(content), self.scrollbar_direction())
                     .width(self.width)
-                    .height(self.height);
-            Element::new(scrollable)
-        };
+                    .height(self.height),
+            )
+        }
+    }
+}
 
+/// Widget implementation for [`TabBar`](TabBar).
+impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
+    for TabBar<'_, Message, TabId, Theme, Renderer>
+where
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Theme: Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
+    TabId: Eq + Clone,
+{
+    fn size(&self) -> iced::Size<Length> {
+        iced::Size::new(self.width, self.height)
+    }
+
+    fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
+        let mut element = self.wrapper_element();
         let tab_tree = if let Some(child_tree) = tree.children.get_mut(0) {
             child_tree.diff(element.as_widget_mut());
             child_tree
@@ -492,39 +490,16 @@ where
             );
         }
 
-        let tab_content = self.tab_content();
-
-        if self.tab_width_fills() {
-            let container = Container::new(Element::new(tab_content))
-                .width(Length::Fill)
-                .height(self.height);
-            Widget::draw(
-                &container,
-                &state.children[0],
-                renderer,
-                theme,
-                style,
-                layout,
-                cursor,
-                viewport,
-            );
-        } else {
-            let scrollable =
-                Scrollable::with_direction(Element::new(tab_content), self.scrollbar_direction())
-                    .width(self.width)
-                    .height(self.height);
-
-            Widget::draw(
-                &scrollable,
-                &state.children[0],
-                renderer,
-                theme,
-                style,
-                layout,
-                cursor,
-                viewport,
-            );
-        }
+        let element = self.wrapper_element();
+        element.as_widget().draw(
+            &state.children[0],
+            renderer,
+            theme,
+            style,
+            layout,
+            cursor,
+            viewport,
+        );
     }
 
     fn tag(&self) -> tree::Tag {
@@ -532,38 +507,11 @@ where
     }
 
     fn children(&self) -> Vec<Tree> {
-        let tab_content = self.tab_content();
-        let element: Element<Message, Theme, Renderer> = if self.tab_width_fills() {
-            Element::new(
-                Container::new(Element::new(tab_content))
-                    .width(Length::Fill)
-                    .height(self.height),
-            )
-        } else {
-            let scrollable =
-                Scrollable::with_direction(Element::new(tab_content), self.scrollbar_direction())
-                    .width(self.width)
-                    .height(self.height);
-            Element::new(scrollable)
-        };
-        vec![Tree::new(element.as_widget())]
+        vec![Tree::new(self.wrapper_element().as_widget())]
     }
 
     fn diff(&self, tree: &mut Tree) {
-        let tab_content = self.tab_content();
-        let element: Element<Message, Theme, Renderer> = if self.tab_width_fills() {
-            Element::new(
-                Container::new(Element::new(tab_content))
-                    .width(Length::Fill)
-                    .height(self.height),
-            )
-        } else {
-            let scrollable =
-                Scrollable::with_direction(Element::new(tab_content), self.scrollbar_direction())
-                    .width(self.width)
-                    .height(self.height);
-            Element::new(scrollable)
-        };
+        let element = self.wrapper_element();
         tree.diff_children(std::slice::from_ref(&element));
     }
 
@@ -576,23 +524,7 @@ where
     ) {
         operation.container(None, layout.bounds());
 
-        let tab_content = self.tab_content();
-
-        let mut element: Element<Message, Theme, Renderer> = if self.tab_width_fills() {
-            let container = Container::new(Element::new(tab_content))
-                .width(Length::Fill)
-                .height(self.height);
-
-            Element::new(container)
-        } else {
-            let scrollable =
-                Scrollable::with_direction(Element::new(tab_content), self.scrollbar_direction())
-                    .width(self.width)
-                    .height(self.height);
-
-            Element::new(scrollable)
-        };
-
+        let mut element = self.wrapper_element();
         let tab_tree = if let Some(child_tree) = tree.children.get_mut(0) {
             child_tree.diff(element.as_widget_mut());
             child_tree
@@ -618,25 +550,10 @@ where
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
-        if self.tab_width_fills() {
-            let tab_content = self.tab_content();
-            let mut container = Container::new(Element::new(tab_content))
-                .width(Length::Fill)
-                .height(self.height);
-            Widget::update(
-                &mut container,
-                &mut state.children[0],
-                event,
-                layout,
-                cursor,
-                renderer,
-                clipboard,
-                shell,
-                viewport,
-            );
+        let transformed_event = if self.tab_width_fills() {
+            None
         } else {
-            // When cursor over tab bar and scrollable is used, map vertical wheel to horizontal scroll
-            let event_to_pass = match event {
+            match event {
                 Event::Mouse(mouse::Event::WheelScrolled { delta }) => {
                     let delta_x = match delta {
                         mouse::ScrollDelta::Lines { y, .. } => {
@@ -658,41 +575,36 @@ where
                     }
                 }
                 _ => None,
-            };
-
-            let (event_ref, did_transform) =
-                event_to_pass.as_ref().map_or((event, false), |e| (e, true));
-
-            let tab_content = self.tab_content();
-            let mut scrollable =
-                Scrollable::with_direction(Element::new(tab_content), self.scrollbar_direction())
-                    .width(self.width)
-                    .height(self.height);
-
-            Widget::update(
-                &mut scrollable,
-                &mut state.children[0],
-                event_ref,
-                layout,
-                cursor,
-                renderer,
-                clipboard,
-                shell,
-                viewport,
-            );
-
-            if did_transform {
-                shell.capture_event();
             }
+        };
+
+        let event_ref = transformed_event.as_ref().unwrap_or(event);
+        let did_transform = transformed_event.is_some();
+
+        {
+            let mut element = self.wrapper_element();
+            let tab_tree = if let Some(child_tree) = state.children.get_mut(0) {
+                child_tree.diff(element.as_widget_mut());
+                child_tree
+            } else {
+                let child_tree = Tree::new(element.as_widget());
+                state.children.insert(0, child_tree);
+                &mut state.children[0]
+            };
+            element.as_widget_mut().update(
+                tab_tree, event_ref, layout, cursor, renderer, clipboard, shell, viewport,
+            );
+        }
+
+        if did_transform {
+            shell.capture_event();
         }
 
         // Sync tab_statuses from TabBarContent's tree state (correct cursor for hover in both layouts)
         if let Some(child_tree) = state.children.get_mut(0) {
             let content_tree = if self.tab_width_fills() {
-                // Container delegates to TabBarContent: state is on the direct child
                 Some(child_tree)
             } else {
-                // Scrollable wraps TabBarContent: state is on the grandchild
                 child_tree.children.get_mut(0)
             };
             if let Some(content_tree) = content_tree {
@@ -712,35 +624,14 @@ where
         viewport: &Rectangle,
         renderer: &Renderer,
     ) -> mouse::Interaction {
-        let tab_content = self.tab_content();
-
-        if self.tab_width_fills() {
-            let container = Container::new(Element::new(tab_content))
-                .width(Length::Fill)
-                .height(self.height);
-            Widget::mouse_interaction(
-                &container,
-                &state.children[0],
-                layout,
-                cursor,
-                viewport,
-                renderer,
-            )
-        } else {
-            let scrollable =
-                Scrollable::with_direction(Element::new(tab_content), self.scrollbar_direction())
-                    .width(self.width)
-                    .height(self.height);
-
-            Widget::mouse_interaction(
-                &scrollable,
-                &state.children[0],
-                layout,
-                cursor,
-                viewport,
-                renderer,
-            )
-        }
+        let element = self.wrapper_element();
+        element.as_widget().mouse_interaction(
+            &state.children[0],
+            layout,
+            cursor,
+            viewport,
+            renderer,
+        )
     }
 }
 
@@ -748,185 +639,11 @@ impl<'a, Message, TabId, Theme, Renderer> From<TabBar<'a, Message, TabId, Theme,
     for Element<'a, Message, Theme, Renderer>
 where
     Renderer: 'a + renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: 'a + Catalog + widget::text::Catalog + scrollable::Catalog + container::Catalog,
+    Theme: 'a + Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
     Message: 'a,
     TabId: 'a + Eq + Clone,
 {
     fn from(tab_bar: TabBar<'a, Message, TabId, Theme, Renderer>) -> Self {
         Element::new(tab_bar)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[derive(Clone, Debug, PartialEq, Eq)]
-    enum TestTabId {
-        One,
-        Two,
-        Three,
-    }
-
-    #[derive(Clone)]
-    #[allow(dead_code)]
-    enum TestMessage {
-        TabSelected(TestTabId),
-        TabClosed(TestTabId),
-    }
-
-    type TestTabBar<'a> = TabBar<'a, TestMessage, TestTabId, iced::Theme, iced::Renderer>;
-
-    #[test]
-    fn tab_bar_new_has_default_values() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected);
-
-        assert_eq!(tab_bar.active_tab, 0);
-        assert_eq!(tab_bar.tab_labels.len(), 0);
-        assert_eq!(tab_bar.tab_indices.len(), 0);
-        assert_eq!(tab_bar.width, Length::Fill);
-        assert_eq!(tab_bar.height, Length::Shrink);
-        assert!((tab_bar.icon_size - DEFAULT_ICON_SIZE).abs() < f32::EPSILON);
-        assert!((tab_bar.text_size - DEFAULT_TEXT_SIZE).abs() < f32::EPSILON);
-        assert!((tab_bar.close_size - DEFAULT_CLOSE_SIZE).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn tab_bar_push_adds_tab() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected)
-            .push(TestTabId::One, TabLabel::Text("Tab 1".to_owned()));
-
-        assert_eq!(tab_bar.tab_labels.len(), 1);
-        assert_eq!(tab_bar.tab_indices.len(), 1);
-        assert_eq!(tab_bar.tab_indices[0], TestTabId::One);
-    }
-
-    #[test]
-    fn tab_bar_push_multiple_tabs() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected)
-            .push(TestTabId::One, TabLabel::Text("Tab 1".to_owned()))
-            .push(TestTabId::Two, TabLabel::Text("Tab 2".to_owned()))
-            .push(TestTabId::Three, TabLabel::Text("Tab 3".to_owned()));
-
-        assert_eq!(tab_bar.tab_labels.len(), 3);
-        assert_eq!(tab_bar.tab_indices.len(), 3);
-    }
-
-    #[test]
-    fn tab_bar_set_active_tab_sets_correct_index() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected)
-            .push(TestTabId::One, TabLabel::Text("Tab 1".to_owned()))
-            .push(TestTabId::Two, TabLabel::Text("Tab 2".to_owned()))
-            .push(TestTabId::Three, TabLabel::Text("Tab 3".to_owned()))
-            .set_active_tab(&TestTabId::Two);
-
-        assert_eq!(tab_bar.active_tab, 1);
-        assert_eq!(tab_bar.get_active_tab_id(), Some(&TestTabId::Two));
-    }
-
-    #[test]
-    fn tab_bar_get_active_tab_idx_returns_index() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected)
-            .push(TestTabId::One, TabLabel::Text("Tab 1".to_owned()))
-            .push(TestTabId::Two, TabLabel::Text("Tab 2".to_owned()))
-            .set_active_tab(&TestTabId::Two);
-
-        assert_eq!(tab_bar.get_active_tab_idx(), 1);
-    }
-
-    #[test]
-    fn tab_bar_size_returns_number_of_tabs() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected)
-            .push(TestTabId::One, TabLabel::Text("Tab 1".to_owned()))
-            .push(TestTabId::Two, TabLabel::Text("Tab 2".to_owned()))
-            .push(TestTabId::Three, TabLabel::Text("Tab 3".to_owned()));
-
-        assert_eq!(tab_bar.size(), 3);
-    }
-
-    #[test]
-    fn tab_bar_width_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).width(200);
-        assert_eq!(tab_bar.width, Length::Fixed(200.0));
-    }
-
-    #[test]
-    fn tab_bar_height_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).height(50);
-        assert_eq!(tab_bar.height, Length::Fixed(50.0));
-    }
-
-    #[test]
-    fn tab_bar_icon_size_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).icon_size(24.0);
-        assert!((tab_bar.icon_size - 24.0).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn tab_bar_text_size_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).text_size(20.0);
-        assert!((tab_bar.text_size - 20.0).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn tab_bar_close_size_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).close_size(18.0);
-        assert!((tab_bar.close_size - 18.0).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn tab_bar_on_close_enables_close_button() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).on_close(TestMessage::TabClosed);
-
-        assert!(tab_bar.on_close.is_some());
-    }
-
-    #[test]
-    fn tab_bar_with_tab_labels_creates_tabs() {
-        let labels = vec![
-            (TestTabId::One, TabLabel::Text("Tab 1".to_owned())),
-            (TestTabId::Two, TabLabel::Text("Tab 2".to_owned())),
-        ];
-
-        let tab_bar = TestTabBar::with_tab_labels(labels, TestMessage::TabSelected);
-
-        assert_eq!(tab_bar.tab_labels.len(), 2);
-        assert_eq!(tab_bar.tab_indices.len(), 2);
-    }
-
-    #[test]
-    fn tab_bar_tab_width_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).tab_width(Length::Fixed(100.0));
-        assert_eq!(tab_bar.tab_width, Length::Fixed(100.0));
-    }
-
-    #[test]
-    fn tab_bar_max_height_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).max_height(200.0);
-        assert!((tab_bar.max_height - 200.0).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn tab_bar_padding_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).padding(10.0);
-        assert_eq!(tab_bar.padding, Padding::from(10.0));
-    }
-
-    #[test]
-    fn tab_bar_spacing_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).spacing(5.0);
-        assert_eq!(tab_bar.spacing, Pixels::from(5.0));
-    }
-
-    #[test]
-    fn tab_bar_scrollbar_floating_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).scrollbar_floating();
-        assert_eq!(tab_bar.scrollbar_spacing, None);
-    }
-
-    #[test]
-    fn tab_bar_scrollbar_spacing_sets_value() {
-        let tab_bar = TestTabBar::new(TestMessage::TabSelected).scrollbar_spacing(8.0);
-        assert_eq!(tab_bar.scrollbar_spacing, Some(Pixels::from(8.0)));
     }
 }

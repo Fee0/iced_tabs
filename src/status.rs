@@ -1,6 +1,6 @@
-//! Status Enum of an mouse Event.
+//! Status for widget events.
 //!
-/// The Status of a widget event.
+/// The status of a widget (e.g. for styling).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     /// can be pressed.
