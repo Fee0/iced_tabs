@@ -9,25 +9,25 @@ pub mod tab_content;
 pub mod tab_label;
 pub mod tab_row;
 
-use iced::{
-    Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Shadow, Size,
-    mouse::{self, Cursor},
-};
 use iced::advanced::{
-    Clipboard, Layout, Shell, Widget,
     layout::{Limits, Node},
     renderer,
-    widget::{Operation, Tree, tree},
+    widget::{tree, Operation, Tree},
+    Clipboard, Layout, Shell, Widget,
 };
-use iced::widget::{self, Container, Scrollable, container, scrollable};
+use iced::widget::{self, container, scrollable, Container, Scrollable};
+use iced::{
+    mouse::{self, Cursor},
+    Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Shadow, Size,
+};
 
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-pub use tab_content::TabBarContent;
-pub use tab_label::TabLabel;
 use crate::status::{Status, StyleFn};
 use crate::style::{Catalog, Style};
+pub use tab_content::TabBarContent;
+pub use tab_label::TabLabel;
 
 /// The default icon size.
 const DEFAULT_ICON_SIZE: f32 = 16.0;
@@ -52,14 +52,14 @@ struct TabBarState;
 ///
 /// # Example
 /// ```ignore
-/// # use iced_aw::{TabLabel, TabBar};
+/// # use iced_tabs::{TabLabel, TabBar};
 /// #
 /// #[derive(Debug, Clone)]
 /// enum Message {
 ///     TabSelected(TabId),
 /// }
 ///
-/// #[derive(PartialEq, Hash)]
+/// #[derive(PartialEq, Hash, Clone)]
 /// enum TabId {
 ///    One,
 ///    Two,
@@ -775,8 +775,7 @@ mod tests {
         TabClosed(TestTabId),
     }
 
-    type TestTabBar<'a> =
-        TabBar<'a, TestMessage, TestTabId, iced::Theme, iced::Renderer>;
+    type TestTabBar<'a> = TabBar<'a, TestMessage, TestTabId, iced::Theme, iced::Renderer>;
 
     #[test]
     fn tab_bar_new_has_default_values() {
