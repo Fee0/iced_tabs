@@ -1,0 +1,12 @@
+[package]
+name = "iced_tabs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+iced_core = { version = "0.14.0" }
+iced_widget = { version = "0.14.0" }
+iced_fonts = { version = "0.3.0", features = ["codicon", "advanced_text"] }
+
+[dev-dependencies]
+iced = { version = "0.14.0" }
