@@ -276,10 +276,6 @@ where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
     Theme: Catalog + text::Catalog,
 {
-    fn children(&self) -> Vec<Tree> {
-        vec![Tree::new(Element::new(self.row_element()))]
-    }
-
     fn size(&self) -> Size<Length> {
         Size::new(self.tab_width, self.height)
     }
@@ -299,27 +295,6 @@ where
         element
             .as_widget_mut()
             .layout(tab_tree, renderer, &limits.width(self.tab_width).loose())
-    }
-
-    fn operate(
-        &mut self,
-        tree: &mut Tree,
-        layout: Layout<'_>,
-        renderer: &Renderer,
-        operation: &mut dyn Operation<()>,
-    ) {
-        operation.container(None, layout.bounds());
-        operation.traverse(&mut |operation| {
-            if let Some(tab_tree) = tree.children.get_mut(0) {
-                let row = self.row_element();
-                let mut element = Element::new(row);
-                tab_tree.diff(element.as_widget_mut());
-                // layout is the Row's layout (TabRow's layout() returns Row's layout)
-                element
-                    .as_widget_mut()
-                    .operate(tab_tree, layout, renderer, operation);
-            }
-        });
     }
 
     fn draw(
@@ -350,6 +325,31 @@ where
                 viewport,
             );
         }
+    }
+
+    fn children(&self) -> Vec<Tree> {
+        vec![Tree::new(Element::new(self.row_element()))]
+    }
+
+    fn operate(
+        &mut self,
+        tree: &mut Tree,
+        layout: Layout<'_>,
+        renderer: &Renderer,
+        operation: &mut dyn Operation<()>,
+    ) {
+        operation.container(None, layout.bounds());
+        operation.traverse(&mut |operation| {
+            if let Some(tab_tree) = tree.children.get_mut(0) {
+                let row = self.row_element();
+                let mut element = Element::new(row);
+                tab_tree.diff(element.as_widget_mut());
+                // layout is the Row's layout (TabRow's layout() returns Row's layout)
+                element
+                    .as_widget_mut()
+                    .operate(tab_tree, layout, renderer, operation);
+            }
+        });
     }
 }
 

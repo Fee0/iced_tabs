@@ -42,7 +42,7 @@ pub struct TabBarContent<
     Theme = iced::Theme,
     Renderer = iced::Renderer,
 > where
-    Renderer: iced::advanced::renderer::Renderer + iced::advanced::text::Renderer,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer,
     Theme: Catalog,
     TabId: Eq + Clone,
 {
@@ -70,7 +70,7 @@ pub struct TabBarContent<
 
 impl<'a, 'b, Message, TabId, Theme, Renderer> TabBarContent<'a, 'b, Message, TabId, Theme, Renderer>
 where
-    Renderer: iced::advanced::renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
     Theme: Catalog + iced::widget::text::Catalog,
     TabId: Eq + Clone,
 {
@@ -146,25 +146,6 @@ where
     Theme: Catalog + iced::widget::text::Catalog,
     TabId: Eq + Clone,
 {
-    fn tag(&self) -> tree::Tag {
-        tree::Tag::of::<TabBarContentState>()
-    }
-
-    fn children(&self) -> Vec<Tree> {
-        vec![Tree::new(Element::new(self.tab_row()))]
-    }
-
-    fn state(&self) -> tree::State {
-        tree::State::new(TabBarContentState {
-            tab_statuses: self.tab_statuses.clone(),
-        })
-    }
-
-    fn diff(&self, tree: &mut Tree) {
-        let content = Element::new(self.tab_row());
-        tree.diff_children(std::slice::from_ref(&content));
-    }
-
     fn size(&self) -> Size<Length> {
         Size::new(self.tab_width, self.height)
     }
@@ -184,6 +165,47 @@ where
         element
             .as_widget_mut()
             .layout(tab_tree, renderer, &limits.width(self.tab_width).loose())
+    }
+
+    fn draw(
+        &self,
+        state: &Tree,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        style: &renderer::Style,
+        layout: Layout<'_>,
+        cursor: Cursor,
+        viewport: &Rectangle,
+    ) {
+        let tab_row = self.tab_row();
+        let element = Element::new(tab_row);
+        let tab_tree = state
+            .children
+            .first()
+            .expect("TabBarContent: Should have TabRow tree");
+
+        element
+            .as_widget()
+            .draw(tab_tree, renderer, theme, style, layout, cursor, viewport);
+    }
+
+    fn tag(&self) -> tree::Tag {
+        tree::Tag::of::<TabBarContentState>()
+    }
+
+    fn state(&self) -> tree::State {
+        tree::State::new(TabBarContentState {
+            tab_statuses: self.tab_statuses.clone(),
+        })
+    }
+
+    fn children(&self) -> Vec<Tree> {
+        vec![Tree::new(Element::new(self.tab_row()))]
+    }
+
+    fn diff(&self, tree: &mut Tree) {
+        let content = Element::new(self.tab_row());
+        tree.diff_children(std::slice::from_ref(&content));
     }
 
     fn operate(
@@ -358,27 +380,5 @@ where
         element
             .as_widget()
             .mouse_interaction(tab_tree, layout, cursor, viewport, renderer)
-    }
-
-    fn draw(
-        &self,
-        state: &Tree,
-        renderer: &mut Renderer,
-        theme: &Theme,
-        style: &renderer::Style,
-        layout: Layout<'_>,
-        cursor: Cursor,
-        viewport: &Rectangle,
-    ) {
-        let tab_row = self.tab_row();
-        let element = Element::new(tab_row);
-        let tab_tree = state
-            .children
-            .first()
-            .expect("TabBarContent: Should have TabRow tree");
-
-        element
-            .as_widget()
-            .draw(tab_tree, renderer, theme, style, layout, cursor, viewport);
     }
 }
