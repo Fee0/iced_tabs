@@ -71,35 +71,34 @@ impl From<(char, String)> for TabLabel {
 
 /// State stored in `TabBarContent`'s tree for persisting `tab_statuses`.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct TabBarContentState {
-    pub(crate) tab_statuses: Vec<(Option<Status>, Option<bool>)>,
+pub struct TabBarContentState {
+    pub tab_statuses: Vec<(Option<Status>, Option<bool>)>,
 }
 
 /// Content widget for the tab bar (handles selection/close in content-space for Scrollable).
-#[allow(missing_debug_implementations)]
-pub(crate) struct Tab<'a, 'b, Message, TabId, Theme = iced::Theme, Renderer = iced::Renderer>
+pub struct Tab<'a, 'b, Message, TabId, Theme = iced::Theme, Renderer = iced::Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer,
     Theme: Catalog,
     TabId: Eq + Clone,
 {
-    pub(crate) tab_labels: Vec<TabLabel>,
-    pub(crate) tab_statuses: Vec<(Option<Status>, Option<bool>)>,
-    pub(crate) tab_indices: Vec<TabId>,
-    pub(crate) icon_size: f32,
-    pub(crate) text_size: f32,
-    pub(crate) close_size: f32,
-    pub(crate) padding: Padding,
-    pub(crate) spacing: Pixels,
-    pub(crate) font: Option<Font>,
-    pub(crate) text_font: Option<Font>,
-    pub(crate) height: Length,
-    pub(crate) position: Position,
-    pub(crate) has_close: bool,
-    pub(crate) on_select: Arc<dyn Fn(TabId) -> Message>,
-    pub(crate) on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
-    pub(crate) active_tab: usize,
-    pub(crate) class: &'a <Theme as Catalog>::Class<'b>,
+    tab_labels: Vec<TabLabel>,
+    tab_statuses: Vec<(Option<Status>, Option<bool>)>,
+    tab_indices: Vec<TabId>,
+    icon_size: f32,
+    text_size: f32,
+    close_size: f32,
+    padding: Padding,
+    spacing: Pixels,
+    font: Option<Font>,
+    text_font: Option<Font>,
+    height: Length,
+    position: Position,
+    has_close: bool,
+    on_select: Arc<dyn Fn(TabId) -> Message>,
+    on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
+    active_tab: usize,
+    class: &'a <Theme as Catalog>::Class<'b>,
     _renderer: PhantomData<Renderer>,
 }
 
@@ -109,7 +108,7 @@ where
     Theme: Catalog + text::Catalog,
     TabId: Eq + Clone,
 {
-    pub(crate) fn new(
+    pub fn new(
         tab_labels: Vec<TabLabel>,
         tab_statuses: Vec<(Option<Status>, Option<bool>)>,
         tab_indices: Vec<TabId>,
