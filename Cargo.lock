@@ -1293,9 +1293,7 @@ name = "iced_tabs"
 version = "0.1.0"
 dependencies = [
  "iced",
- "iced_core",
  "iced_fonts",
- "iced_widget",
 ]
 
 [[package]]

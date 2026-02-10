@@ -2,21 +2,19 @@
 //!
 //! *This API requires the following crate features to be activated: `tab_bar`*
 
-use iced_core::{
-    Alignment, Element, Font, Layout, Length, Padding, Pixels, Point, Rectangle, Size, Widget,
-    alignment::Vertical,
+use iced::{
+    Alignment, Element, Font, Length, Padding, Pixels, Point, Rectangle, Size,
+    alignment::{Horizontal, Vertical},
+};
+use iced::advanced::{
+    Layout, Widget,
     layout::{Limits, Node},
     renderer,
-    widget::{Operation, Tree},
+    widget::{Operation, Tree, text::{LineHeight, Wrapping}},
 };
-use iced_widget::{
-    Column, Row, Text,
-    text::{self, LineHeight, Wrapping},
-};
+use iced::widget::{Column, Row, Text, text};
 
 use iced_fonts::{codicon::advanced_text, CODICON_FONT};
-
-use iced_core::alignment::Horizontal;
 use std::marker::PhantomData;
 use crate::status::Status;
 use crate::style::Catalog;
@@ -30,9 +28,9 @@ const CLOSE_HIT_AREA_MULTIPLIER: f32 = 1.3;
 
 /// A row of tabs for the [`TabBar`](super::TabBar).
 #[allow(missing_debug_implementations)]
-pub struct TabRow<'a, 'b, Message, Theme = iced_widget::Theme, Renderer = iced_widget::Renderer>
+pub struct TabRow<'a, 'b, Message, Theme = iced::Theme, Renderer = iced::Renderer>
 where
-    Renderer: renderer::Renderer + iced_core::text::Renderer,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer,
     Theme: Catalog,
 {
     /// The tab labels.
@@ -71,7 +69,7 @@ where
 
 impl<'a, 'b, Message, Theme, Renderer> TabRow<'a, 'b, Message, Theme, Renderer>
 where
-    Renderer: renderer::Renderer + iced_core::text::Renderer<Font = Font>,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
     Theme: Catalog + text::Catalog,
 {
     /// Creates a new [`TabRow`] with the given tab data.
@@ -119,7 +117,7 @@ where
             font: Option<Font>,
         ) -> Text<'_, Theme, Renderer>
         where
-            Renderer: iced_core::text::Renderer,
+            Renderer: iced::advanced::text::Renderer,
             Renderer::Font: From<Font>,
             Theme: text::Catalog,
         {
@@ -138,7 +136,7 @@ where
             font: Option<Font>,
         ) -> Text<'_, Theme, Renderer>
         where
-            Renderer: iced_core::text::Renderer,
+            Renderer: iced::advanced::text::Renderer,
             Renderer::Font: From<Font>,
             Theme: text::Catalog,
         {
@@ -275,7 +273,7 @@ where
 impl<Message, Theme, Renderer> Widget<Message, Theme, Renderer>
     for TabRow<'_, '_, Message, Theme, Renderer>
 where
-    Renderer: renderer::Renderer + iced_core::text::Renderer<Font = Font>,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
     Theme: Catalog + text::Catalog,
 {
     fn children(&self) -> Vec<Tree> {
@@ -288,7 +286,7 @@ where
 
     fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
         let row = self.row_element();
-        let mut element = iced_core::Element::new(row);
+        let mut element = Element::new(row);
         let tab_tree = if let Some(child_tree) = tree.children.get_mut(0) {
             child_tree.diff(element.as_widget_mut());
             child_tree
@@ -314,7 +312,7 @@ where
         operation.traverse(&mut |operation| {
             if let Some(tab_tree) = tree.children.get_mut(0) {
                 let row = self.row_element();
-                let mut element = iced_core::Element::new(row);
+                let mut element = Element::new(row);
                 tab_tree.diff(element.as_widget_mut());
                 // layout is the Row's layout (TabRow's layout() returns Row's layout)
                 element
@@ -331,7 +329,7 @@ where
         theme: &Theme,
         _style: &renderer::Style,
         layout: Layout<'_>,
-        cursor: iced_core::mouse::Cursor,
+        cursor: iced::mouse::Cursor,
         viewport: &Rectangle,
     ) {
         for ((i, tab), tab_layout) in self.tab_labels.iter().enumerate().zip(layout.children()) {
@@ -365,17 +363,17 @@ fn draw_tab<Theme, Renderer>(
     position: Position,
     theme: &Theme,
     class: &<Theme as Catalog>::Class<'_>,
-    _cursor: iced_core::mouse::Cursor,
+    _cursor: iced::mouse::Cursor,
     icon_data: (Font, f32),
     text_data: (Font, f32),
     close_size: f32,
     viewport: &Rectangle,
 ) where
-    Renderer: renderer::Renderer + iced_core::text::Renderer<Font = Font>,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
     Theme: Catalog + text::Catalog,
 {
-    use iced_core::{Background, Border, Color, Shadow};
-    use iced_widget::text;
+    use iced::{Background, Border, Color, Shadow};
+    use iced::widget::text;
 
     fn icon_bound_rectangle(item: Option<Layout<'_>>) -> Rectangle {
         item.expect("Graphics: Layout should have an icons layout for an IconText")
@@ -418,7 +416,7 @@ fn draw_tab<Theme, Renderer>(
             let icon_bounds = icon_bound_rectangle(label_layout_children.next());
 
             renderer.fill_text(
-                iced_core::text::Text {
+                iced::advanced::text::Text {
                     content: icon.to_string(),
                     bounds: Size::new(icon_bounds.width, icon_bounds.height),
                     size: Pixels(icon_data.1),
@@ -439,7 +437,7 @@ fn draw_tab<Theme, Renderer>(
             let text_bounds = text_bound_rectangle(label_layout_children.next());
 
             renderer.fill_text(
-                iced_core::text::Text {
+                iced::advanced::text::Text {
                     content: text.clone(),
                     bounds: Size::new(text_bounds.width, text_bounds.height),
                     size: Pixels(text_data.1),
@@ -487,7 +485,7 @@ fn draw_tab<Theme, Renderer>(
             }
 
             renderer.fill_text(
-                iced_core::text::Text {
+                iced::advanced::text::Text {
                     content: icon.to_string(),
                     bounds: Size::new(icon_bounds.width, icon_bounds.height),
                     size: Pixels(icon_data.1),
@@ -504,7 +502,7 @@ fn draw_tab<Theme, Renderer>(
             );
 
             renderer.fill_text(
-                iced_core::text::Text {
+                iced::advanced::text::Text {
                     content: text.clone(),
                     bounds: Size::new(text_bounds.width, text_bounds.height),
                     size: Pixels(text_data.1),
@@ -529,7 +527,7 @@ fn draw_tab<Theme, Renderer>(
         let (content, font, shaping) = advanced_text::close();
 
         renderer.fill_text(
-            iced_core::text::Text {
+            iced::advanced::text::Text {
                 content,
                 bounds: Size::new(cross_bounds.width, cross_bounds.height),
                 size: Pixels(close_size + if is_mouse_over_cross { 1.0 } else { 0.0 }),

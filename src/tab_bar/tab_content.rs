@@ -6,12 +6,15 @@
 //!
 //! *This API requires the following crate features to be activated: `tab_bar`*
 
-use iced_core::{
-    Clipboard, Element, Event, Font, Layout, Length, Padding, Pixels, Rectangle, Shell, Size,
-    Widget,
-    layout::{Limits, Node},
+use iced::{
+    Element, Event, Font, Length, Padding, Pixels, Rectangle, Size,
     mouse::{self, Cursor},
-    renderer, touch,
+    touch,
+};
+use iced::advanced::{
+    Clipboard, Layout, Shell, Widget,
+    layout::{Limits, Node},
+    renderer,
     widget::{Operation, Tree, tree},
 };
 use std::marker::PhantomData;
@@ -36,10 +39,10 @@ pub struct TabBarContent<
     'b,
     Message,
     TabId,
-    Theme = iced_widget::Theme,
-    Renderer = iced_widget::Renderer,
+    Theme = iced::Theme,
+    Renderer = iced::Renderer,
 > where
-    Renderer: iced_core::renderer::Renderer + iced_core::text::Renderer,
+    Renderer: iced::advanced::renderer::Renderer + iced::advanced::text::Renderer,
     Theme: Catalog,
     TabId: Eq + Clone,
 {
@@ -67,8 +70,8 @@ pub struct TabBarContent<
 
 impl<'a, 'b, Message, TabId, Theme, Renderer> TabBarContent<'a, 'b, Message, TabId, Theme, Renderer>
 where
-    Renderer: iced_core::renderer::Renderer + iced_core::text::Renderer<Font = Font>,
-    Theme: Catalog + iced_widget::text::Catalog,
+    Renderer: iced::advanced::renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Theme: Catalog + iced::widget::text::Catalog,
     TabId: Eq + Clone,
 {
     /// Creates a new [`TabBarContent`] with the given parameters.
@@ -139,8 +142,8 @@ where
 impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
     for TabBarContent<'_, '_, Message, TabId, Theme, Renderer>
 where
-    Renderer: renderer::Renderer + iced_core::text::Renderer<Font = Font>,
-    Theme: Catalog + iced_widget::text::Catalog,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Theme: Catalog + iced::widget::text::Catalog,
     TabId: Eq + Clone,
 {
     fn tag(&self) -> tree::Tag {

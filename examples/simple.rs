@@ -3,12 +3,12 @@
 // It was written by Kaiden42 <gitlab@tinysn.com>
 
 use iced::{
+    widget::{toggler, Button, Column, Row, Text, TextInput},
     Alignment, Element, Length,
-    widget::{Button, Column, Row, Text, TextInput, toggler},
 };
 
 use iced_fonts::CODICON_FONT_BYTES;
-use iced_tabs::{TabBar, TabLabel};
+use iced_tabs::{dark, TabBar, TabLabel};
 
 fn main() -> iced::Result {
     iced::application(
@@ -119,7 +119,8 @@ impl TabBarExample {
                     .tab_width(Length::Shrink)
                     .spacing(5.0)
                     .padding(5.0)
-                    .text_size(32.0);
+                    .text_size(32.0)
+                    .style(dark);
                 if self.scrollbar_floating {
                     tab_bar.scrollbar_floating()
                 } else {

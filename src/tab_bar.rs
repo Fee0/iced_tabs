@@ -9,22 +9,23 @@ pub mod tab_content;
 pub mod tab_label;
 pub mod tab_row;
 
-use iced_core::{
-    Border, Clipboard, Color, Element, Event, Font, Layout, Length, Padding, Pixels, Rectangle,
-    Shadow, Shell, Size, Widget,
-    layout::{Limits, Node},
+use iced::{
+    Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Shadow, Size,
     mouse::{self, Cursor},
+};
+use iced::advanced::{
+    Clipboard, Layout, Shell, Widget,
+    layout::{Limits, Node},
     renderer,
     widget::{Operation, Tree, tree},
 };
-use iced_widget::{Container, Scrollable, container, scrollable, text};
+use iced::widget::{self, Container, Scrollable, container, scrollable};
 
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 pub use tab_content::TabBarContent;
 pub use tab_label::TabLabel;
-pub use tab_row::TabRow;
 use crate::status::{Status, StyleFn};
 use crate::style::{Catalog, Style};
 
@@ -74,9 +75,9 @@ struct TabBarState;
 /// .set_active_tab(&TabId::One);
 /// ```
 #[allow(missing_debug_implementations)]
-pub struct TabBar<'a, Message, TabId, Theme = iced_widget::Theme, Renderer = iced_widget::Renderer>
+pub struct TabBar<'a, Message, TabId, Theme = iced::Theme, Renderer = iced::Renderer>
 where
-    Renderer: renderer::Renderer + iced_core::text::Renderer,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer,
     Theme: Catalog,
     TabId: Eq + Clone,
 {
@@ -140,8 +141,8 @@ pub enum Position {
 
 impl<'a, Message, TabId, Theme, Renderer> TabBar<'a, Message, TabId, Theme, Renderer>
 where
-    Renderer: renderer::Renderer + iced_core::text::Renderer<Font = Font>,
-    Theme: Catalog + text::Catalog,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Theme: Catalog + widget::text::Catalog,
     TabId: Eq + Clone,
 {
     /// Creates a new [`TabBar`] with the index of the selected tab and a specified
@@ -418,8 +419,8 @@ where
 impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
     for TabBar<'_, Message, TabId, Theme, Renderer>
 where
-    Renderer: renderer::Renderer + iced_core::text::Renderer<Font = Font>,
-    Theme: Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Theme: Catalog + widget::text::Catalog + scrollable::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
     fn size(&self) -> Size<Length> {
@@ -746,8 +747,8 @@ where
 impl<'a, Message, TabId, Theme, Renderer> From<TabBar<'a, Message, TabId, Theme, Renderer>>
     for Element<'a, Message, Theme, Renderer>
 where
-    Renderer: 'a + renderer::Renderer + iced_core::text::Renderer<Font = Font>,
-    Theme: 'a + Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
+    Renderer: 'a + renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Theme: 'a + Catalog + widget::text::Catalog + scrollable::Catalog + container::Catalog,
     Message: 'a,
     TabId: 'a + Eq + Clone,
 {
@@ -775,7 +776,7 @@ mod tests {
     }
 
     type TestTabBar<'a> =
-        TabBar<'a, TestMessage, TestTabId, iced_widget::Theme, iced_widget::Renderer>;
+        TabBar<'a, TestMessage, TestTabId, iced::Theme, iced::Renderer>;
 
     #[test]
     fn tab_bar_new_has_default_values() {

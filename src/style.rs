@@ -6,8 +6,8 @@
 //!
 //! *This API requires the following crate features to be activated: `tab_bar`*
 
-use iced_core::{Background, Color, Theme, border::Radius};
 use crate::status::{Status, StyleFn};
+use iced::{border::Radius, Background, Color, Theme};
 
 /// The appearance of a [`TabBar`](crate::widget::tab_bar::TabBar).
 #[derive(Clone, Copy, Debug)]
@@ -168,7 +168,7 @@ pub fn blue(_theme: &Theme, status: Status) -> Style {
     base
 }
 
-/// The blue theme of a [`TabBar`](crate::widget::tab_bar::TabBar).
+/// The green theme of a [`TabBar`](crate::widget::tab_bar::TabBar).
 #[must_use]
 pub fn green(_theme: &Theme, status: Status) -> Style {
     let mut base = Style {
@@ -214,7 +214,7 @@ pub fn purple(_theme: &Theme, status: Status) -> Style {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use iced_core::{Background, Theme};
+    use iced::{Background, Theme};
 
     #[test]
     fn style_default() {
