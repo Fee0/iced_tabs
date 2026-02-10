@@ -2,24 +2,27 @@
 //!
 //! *This API requires the following crate features to be activated: `tab_bar`*
 
-use iced::{
-    Alignment, Element, Font, Length, Padding, Pixels, Point, Rectangle, Size,
-    alignment::{Horizontal, Vertical},
-};
 use iced::advanced::{
-    Layout, Widget,
     layout::{Limits, Node},
     renderer,
-    widget::{Operation, Tree, text::{LineHeight, Wrapping}},
+    widget::{
+        text::{LineHeight, Wrapping},
+        Operation, Tree,
+    },
+    Layout, Widget,
 };
-use iced::widget::{Column, Row, Text, text};
+use iced::widget::{text, Column, Row, Text};
+use iced::{
+    alignment::{Horizontal, Vertical},
+    Alignment, Element, Font, Length, Padding, Pixels, Point, Rectangle, Size,
+};
 
-use iced_fonts::{codicon::advanced_text, CODICON_FONT};
-use std::marker::PhantomData;
+use super::tab_label::TabLabel;
+use super::Position;
 use crate::status::Status;
 use crate::style::Catalog;
-use super::Position;
-use super::tab_label::TabLabel;
+use iced_fonts::{codicon::advanced_text, CODICON_FONT};
+use std::marker::PhantomData;
 
 /// Offset added to icon/text size during layout to prevent clipping.
 const LAYOUT_SIZE_OFFSET: f32 = 1.0;
@@ -372,8 +375,8 @@ fn draw_tab<Theme, Renderer>(
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
     Theme: Catalog + text::Catalog,
 {
-    use iced::{Background, Border, Color, Shadow};
     use iced::widget::text;
+    use iced::{Background, Border, Color, Shadow};
 
     fn icon_bound_rectangle(item: Option<Layout<'_>>) -> Rectangle {
         item.expect("Graphics: Layout should have an icons layout for an IconText")

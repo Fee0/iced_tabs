@@ -6,24 +6,23 @@
 //!
 //! *This API requires the following crate features to be activated: `tab_bar`*
 
-use iced::{
-    Element, Event, Font, Length, Padding, Pixels, Rectangle, Size,
-    mouse::{self, Cursor},
-    touch,
-};
+use super::tab_label::TabLabel;
+use super::tab_row::TabRow;
+use super::Position;
+use crate::status::Status;
+use crate::style::Catalog;
 use iced::advanced::{
-    Clipboard, Layout, Shell, Widget,
     layout::{Limits, Node},
     renderer,
-    widget::{Operation, Tree, tree},
+    widget::{tree, Operation, Tree},
+    Clipboard, Layout, Shell, Widget,
+};
+use iced::{
+    mouse::{self, Cursor},
+    touch, Element, Event, Font, Length, Padding, Pixels, Rectangle, Size,
 };
 use std::marker::PhantomData;
 use std::sync::Arc;
-use crate::status::Status;
-use crate::style::Catalog;
-use super::Position;
-use super::tab_label::TabLabel;
-use super::tab_row::TabRow;
 
 /// State stored in `TabBarContent`'s tree for persisting `tab_statuses`.
 #[derive(Debug, Clone, Default)]
@@ -34,14 +33,8 @@ pub(crate) struct TabBarContentState {
 /// Content widget for the tab bar that handles selection and close with correct
 /// hit testing (works with scrollable content).
 #[allow(missing_debug_implementations)]
-pub struct TabBarContent<
-    'a,
-    'b,
-    Message,
-    TabId,
-    Theme = iced::Theme,
-    Renderer = iced::Renderer,
-> where
+pub struct TabBarContent<'a, 'b, Message, TabId, Theme = iced::Theme, Renderer = iced::Renderer>
+where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer,
     Theme: Catalog,
     TabId: Eq + Clone,
