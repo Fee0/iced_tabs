@@ -604,14 +604,14 @@ fn draw_tab<Theme, Renderer>(
             renderer::Quad {
                 bounds,
                 border: Border {
-                    radius: style.tab_border_radius,
-                    width: style.tab_label_border_width,
-                    color: style.tab_label_border_color,
+                    radius: style.tab.border_radius,
+                    width: style.tab.label_border_width,
+                    color: style.tab.label_border_color,
                 },
-                shadow: Shadow::default(),
+                shadow: style.tab.shadow,
                 ..renderer::Quad::default()
             },
-            style.tab_label_background,
+            style.tab.label_background,
         );
     }
 
@@ -632,7 +632,7 @@ fn draw_tab<Theme, Renderer>(
                     wrapping: Wrapping::default(),
                 },
                 Point::new(icon_bounds.center_x(), icon_bounds.center_y()),
-                style.icon_color,
+                style.tab.icon_color,
                 icon_bounds,
             );
         }
@@ -653,7 +653,7 @@ fn draw_tab<Theme, Renderer>(
                     wrapping: Wrapping::default(),
                 },
                 Point::new(text_bounds.center_x(), text_bounds.center_y()),
-                style.text_color,
+                style.tab.text_color,
                 text_bounds,
             );
         }
@@ -701,7 +701,7 @@ fn draw_tab<Theme, Renderer>(
                     wrapping: Wrapping::default(),
                 },
                 Point::new(icon_bounds.center_x(), icon_bounds.center_y()),
-                style.icon_color,
+                style.tab.icon_color,
                 icon_bounds,
             );
 
@@ -718,7 +718,7 @@ fn draw_tab<Theme, Renderer>(
                     wrapping: Wrapping::default(),
                 },
                 Point::new(text_bounds.center_x(), text_bounds.center_y()),
-                style.text_color,
+                style.tab.text_color,
                 text_bounds,
             );
         }
@@ -743,7 +743,7 @@ fn draw_tab<Theme, Renderer>(
                 wrapping: Wrapping::default(),
             },
             Point::new(cross_bounds.center_x(), cross_bounds.center_y()),
-            style.text_color,
+            style.tab.text_color,
             cross_bounds,
         );
 
@@ -752,14 +752,15 @@ fn draw_tab<Theme, Renderer>(
                 renderer::Quad {
                     bounds: cross_bounds,
                     border: Border {
-                        radius: style.icon_border_radius,
-                        width: style.border_width,
-                        color: style.border_color.unwrap_or(Color::TRANSPARENT),
+                        radius: style.tab.icon_border_radius,
+                        width: style.bar.border_width,
+                        color: style.bar.border_color.unwrap_or(Color::TRANSPARENT),
                     },
-                    shadow: Shadow::default(),
+                    shadow: style.tab.shadow,
                     ..renderer::Quad::default()
                 },
                 style
+                    .tab
                     .icon_background
                     .unwrap_or(Background::Color(Color::TRANSPARENT)),
             );

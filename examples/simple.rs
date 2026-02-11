@@ -87,7 +87,7 @@ impl TabBarExample {
                     .push(
                         TextInput::new("Tab content", &self.new_tab_content)
                             .on_input(Message::TabContentInputChanged)
-                            .size(12)
+                            .size(16)
                             .padding(5.0),
                     )
                     .push(Button::new(Text::new("New")).on_press(Message::NewTab))

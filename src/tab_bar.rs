@@ -471,14 +471,18 @@ where
                 renderer::Quad {
                     bounds,
                     border: Border {
-                        radius: 0.0.into(),
-                        width: style_sheet.border_width,
-                        color: style_sheet.border_color.unwrap_or(Color::TRANSPARENT),
+                        radius: style_sheet.bar.border_radius,
+                        width: style_sheet.bar.border_width,
+                        color: style_sheet
+                            .bar
+                            .border_color
+                            .unwrap_or(Color::TRANSPARENT),
                     },
-                    shadow: Shadow::default(),
+                    shadow: style_sheet.bar.shadow,
                     ..renderer::Quad::default()
                 },
                 style_sheet
+                    .bar
                     .background
                     .unwrap_or_else(|| Color::TRANSPARENT.into()),
             );
