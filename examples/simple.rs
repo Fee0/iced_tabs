@@ -3,9 +3,10 @@
 // It was written by Kaiden42 <gitlab@tinysn.com>
 
 use iced::{
-    widget::{Button, Column, Row, Text, TextInput},
+    widget::{pick_list, Button, Column, Row, Text, TextInput},
     Alignment, Element,
 };
+use std::fmt;
 
 use iced_fonts::CODICON_FONT_BYTES;
 use iced_tabs::{dark, ScrollMode, TabBar, TabLabel};
@@ -28,6 +29,42 @@ enum Message {
     TabContentInputChanged(String),
     NewTab,
     ScrollModeChanged(ScrollMode),
+}
+
+/// Local enum for the scroll mode dropdown (maps to iced_tabs::ScrollMode).
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ScrollModeChoice {
+    Floating,
+    Embedded,
+    ButtonsOnly,
+}
+
+impl fmt::Display for ScrollModeChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ScrollModeChoice::Floating => write!(f, "Floating"),
+            ScrollModeChoice::Embedded => write!(f, "Embedded"),
+            ScrollModeChoice::ButtonsOnly => write!(f, "Buttons only"),
+        }
+    }
+}
+
+impl From<ScrollModeChoice> for ScrollMode {
+    fn from(c: ScrollModeChoice) -> Self {
+        match c {
+            ScrollModeChoice::Floating => ScrollMode::Floating,
+            ScrollModeChoice::Embedded => ScrollMode::Embedded(4.0.into()),
+            ScrollModeChoice::ButtonsOnly => ScrollMode::ButtonsOnly,
+        }
+    }
+}
+
+fn scroll_mode_to_choice(mode: &ScrollMode) -> ScrollModeChoice {
+    match mode {
+        ScrollMode::Floating => ScrollModeChoice::Floating,
+        ScrollMode::Embedded(_) => ScrollModeChoice::Embedded,
+        ScrollMode::ButtonsOnly => ScrollModeChoice::ButtonsOnly,
+    }
 }
 
 #[derive(Debug, Default)]
@@ -95,26 +132,17 @@ impl TabBarExample {
                     .push(Button::new(Text::new("New")).on_press(Message::NewTab))
                     .push(Text::new("Scroll mode:"))
                     .push(
-                        Row::new()
-                            .spacing(4.0)
-                            .push(
-                                Button::new(Text::new("Floating"))
-                                    .on_press(Message::ScrollModeChanged(
-                                        ScrollMode::Floating,
-                                    )),
-                            )
-                            .push(
-                                Button::new(Text::new("Embedded"))
-                                    .on_press(Message::ScrollModeChanged(
-                                        ScrollMode::Embedded(4.0.into()),
-                                    )),
-                            )
-                            .push(
-                                Button::new(Text::new("Buttons"))
-                                    .on_press(Message::ScrollModeChanged(
-                                        ScrollMode::ButtonsOnly,
-                                    )),
-                            ),
+                        pick_list(
+                            [
+                                ScrollModeChoice::Floating,
+                                ScrollModeChoice::Embedded,
+                                ScrollModeChoice::ButtonsOnly,
+                            ],
+                            Some(scroll_mode_to_choice(&self.scroll_mode)),
+                            |choice| Message::ScrollModeChanged(choice.into()),
+                        )
+                        .placeholder("Scroll mode")
+                        .width(150),
                     )
                     .align_y(Alignment::Center)
                     .padding(10.0)

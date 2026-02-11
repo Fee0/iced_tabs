@@ -115,6 +115,8 @@ where
     position: Position,
     /// Scroll behavior and scrollbar visibility for the tab bar.
     scroll_mode: ScrollMode,
+    /// Where the scroll buttons are placed when [`scroll_mode`](Self::scroll_mode) is [`ButtonsOnly`](ScrollMode::ButtonsOnly).
+    scroll_buttons_position: ScrollButtonsPosition,
     #[allow(clippy::missing_docs_in_private_items)]
     _renderer: PhantomData<Renderer>,
 }
@@ -143,8 +145,19 @@ pub enum ScrollMode {
     Floating,
     /// Scrollbar is embedded in its own row below the tabs with the given spacing.
     Embedded(Pixels),
-    /// Scrollbar is hidden; scrolling is done via mouse wheel and right-side `<` / `>` buttons.
+    /// Scrollbar is hidden; scrolling is done via mouse wheel and `<` / `>` buttons.
+    /// Button position (left or right) is set via [`scroll_buttons_position`](TabBar::scroll_buttons_position) (default left).
     ButtonsOnly,
+}
+
+/// Where the `<` / `>` scroll buttons are placed when using [`ScrollMode::ButtonsOnly`].
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum ScrollButtonsPosition {
+    /// Buttons on the left side of the tab bar (default).
+    #[default]
+    Left,
+    /// Buttons on the right side of the tab bar.
+    Right,
 }
 
 impl Default for ScrollMode {
@@ -222,6 +235,7 @@ where
             class: <Theme as Catalog>::default(),
             position: Position::default(),
             scroll_mode: ScrollMode::default(),
+            scroll_buttons_position: ScrollButtonsPosition::default(),
             _renderer: PhantomData,
         }
     }
@@ -334,10 +348,18 @@ where
     /// Use [`ScrollMode::Floating`] for a floating scrollbar,
     /// [`ScrollMode::Embedded`] for an always-visible embedded scrollbar,
     /// or [`ScrollMode::ButtonsOnly`] to hide the scrollbar and use `<` / `>`
-    /// buttons on the right side instead.
+    /// buttons (position set by [`scroll_buttons_position`](Self::scroll_buttons_position)).
     #[must_use]
     pub fn scroll_mode(mut self, mode: ScrollMode) -> Self {
         self.scroll_mode = mode;
+        self
+    }
+
+    /// Sets where the `<` / `>` scroll buttons are placed. Only applies when
+    /// [`scroll_mode`](Self::scroll_mode) is [`ScrollMode::ButtonsOnly`]. Default is [`Left`](ScrollButtonsPosition::Left).
+    #[must_use]
+    pub fn scroll_buttons_position(mut self, position: ScrollButtonsPosition) -> Self {
+        self.scroll_buttons_position = position;
         self
     }
 
@@ -451,16 +473,18 @@ where
                 .height(self.height);
 
         if matches!(self.scroll_mode, ScrollMode::ButtonsOnly) {
-            // In buttons-only mode, reserve a fixed-width area on the right for the `<` / `>` buttons.
             let buttons_space = Space::new()
                 .width(Length::Fixed(BUTTONS_AREA_WIDTH))
                 .height(Length::Fill);
-            let row = Row::new()
-                .push(scrollable.width(Length::Fill))
-                .push(buttons_space)
-                .width(self.width)
-                .height(self.height);
-            Element::new(row)
+            let row = match self.scroll_buttons_position {
+                ScrollButtonsPosition::Left => Row::new()
+                    .push(buttons_space)
+                    .push(scrollable.width(Length::Fill)),
+                ScrollButtonsPosition::Right => Row::new()
+                    .push(scrollable.width(Length::Fill))
+                    .push(buttons_space),
+            };
+            Element::new(row.width(self.width).height(self.height))
         } else {
             Element::new(scrollable)
         }
@@ -542,12 +566,11 @@ where
             viewport,
         );
 
-        // In buttons-only mode, draw the `<` / `>` scroll buttons in the reserved right-side area.
+        // In buttons-only mode, draw the `<` / `>` scroll buttons in the reserved area.
         if matches!(self.scroll_mode, ScrollMode::ButtonsOnly) {
-            // Layout: [ Scrollable | ButtonsSpace ]
-            let mut children = layout.children();
-            let _scrollable_layout = children.next();
-            if let Some(buttons_layout) = children.next() {
+            let (buttons_layout, _) =
+                buttons_and_scrollable_layouts(layout, self.scroll_buttons_position);
+            if let Some(buttons_layout) = buttons_layout {
                 let buttons_bounds = buttons_layout.bounds();
                 let (left_bounds, right_bounds) = split_buttons_area(buttons_bounds);
 
@@ -663,9 +686,9 @@ where
                 if matches!(self.scroll_mode, ScrollMode::ButtonsOnly) =>
             {
                 if let Some(cursor_pos) = cursor.position() {
-                    let mut children = layout.children();
-                    let _scrollable_layout = children.next();
-                    if let Some(buttons_layout) = children.next() {
+                    let (buttons_layout, _) =
+                        buttons_and_scrollable_layouts(layout, self.scroll_buttons_position);
+                    if let Some(buttons_layout) = buttons_layout {
                         let buttons_bounds = buttons_layout.bounds();
                         let (left_bounds, right_bounds) = split_buttons_area(buttons_bounds);
                         // Use same right_hover_bounds as in draw so hover and click areas match.
@@ -730,12 +753,16 @@ where
                 }) => *x,
                 _ => 0.0,
             };
-            let mut layout_children = layout.children();
-            let scrollable_layout = layout_children.next();
+            let (_, scrollable_layout) =
+                buttons_and_scrollable_layouts(layout, self.scroll_buttons_position);
+            let scrollable_child_index = match self.scroll_buttons_position {
+                ScrollButtonsPosition::Left => 1,
+                ScrollButtonsPosition::Right => 0,
+            };
             let scroll_tree = state
                 .children
                 .get_mut(0)
-                .and_then(|row| row.children.get_mut(0));
+                .and_then(|row| row.children.get_mut(scrollable_child_index));
             if let (Some(scroll_layout), Some(scroll_tree)) = (scrollable_layout, scroll_tree) {
                 let mut scrollable = self.scrollable_element();
                 scroll_tree.diff(scrollable.as_widget_mut());
@@ -782,10 +809,14 @@ where
             // Structure differs depending on scroll mode:
             // - Floating/Embedded: wrapper_element = Scrollable -> TabBarContent
             // - ButtonsOnly: wrapper_element = Row -> Scrollable -> TabBarContent
+            let scrollable_child_index = match self.scroll_buttons_position {
+                ScrollButtonsPosition::Left => 1,
+                ScrollButtonsPosition::Right => 0,
+            };
             let content_state_opt: Option<&tab::TabBarContentState> = match self.scroll_mode {
                 ScrollMode::ButtonsOnly => wrapper_tree
                     .children
-                    .get_mut(0) // Row's first child = Scrollable
+                    .get_mut(scrollable_child_index)
                     .and_then(|scroll_tree| scroll_tree.children.get_mut(0))
                     .map(|content_tree| {
                         content_tree.state.downcast_ref::<tab::TabBarContentState>()
@@ -859,6 +890,21 @@ impl Operation<()> for ScrollByOperation {
 
     fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<()>)) {
         operate(self);
+    }
+}
+
+/// Returns (buttons_layout, scrollable_layout) for the Row in ButtonsOnly mode.
+/// Row order depends on scroll_buttons_position: Left => [buttons, scrollable], Right => [scrollable, buttons].
+fn buttons_and_scrollable_layouts(
+    layout: Layout<'_>,
+    position: ScrollButtonsPosition,
+) -> (Option<Layout<'_>>, Option<Layout<'_>>) {
+    let mut children = layout.children();
+    let first = children.next();
+    let second = children.next();
+    match position {
+        ScrollButtonsPosition::Left => (first, second),
+        ScrollButtonsPosition::Right => (second, first),
     }
 }
 
