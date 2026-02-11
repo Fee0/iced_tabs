@@ -28,7 +28,7 @@ pub struct Style {
     /// The border color of the tab labels.
     pub tab_label_border_color: Color,
 
-    /// The border with of the tab labels.
+    /// The border width of the tab labels.
     pub tab_label_border_width: f32,
 
     /// The icon color of the tab labels.

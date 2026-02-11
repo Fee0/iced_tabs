@@ -18,6 +18,7 @@ use crate::style::{Catalog, Style};
 use crate::tab;
 use crate::tab::TabLabel;
 use iced::mouse::Cursor;
+use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -66,7 +67,6 @@ pub(crate) struct TabBarState;
 /// .push(TabId::Three, TabLabel::Text(String::from("Three")))
 /// .set_active_tab(&TabId::One);
 /// ```
-#[allow(missing_debug_implementations)]
 pub struct TabBar<'a, Message, TabId, Theme = iced::Theme, Renderer = iced::Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer,
@@ -116,7 +116,7 @@ where
 }
 
 /// The [`Position`] of the icon relative to text, this enum is only relative if [`TabLabel::IconText`] is used.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum Position {
     /// Icon is placed above of the text.
     Top,
@@ -127,6 +127,24 @@ pub enum Position {
     #[default]
     /// Icon is placed left of the text, the default.
     Left,
+}
+
+impl<'a, Message, TabId, Theme, Renderer> fmt::Debug for TabBar<'a, Message, TabId, Theme, Renderer>
+where
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer,
+    Theme: Catalog,
+    TabId: Eq + Clone,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TabBar")
+            .field("active_tab", &self.active_tab)
+            .field("tab_labels", &self.tab_labels)
+            .field("size", &self.tab_indices.len())
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .field("position", &self.position)
+            .finish()
+    }
 }
 
 impl<'a, Message, TabId, Theme, Renderer> TabBar<'a, Message, TabId, Theme, Renderer>
@@ -532,7 +550,7 @@ where
                     mouse::ScrollDelta::Lines { y, .. } => {
                         *y * VERTICAL_TO_HORIZONTAL_SCROLL_FACTOR
                     }
-                    mouse::ScrollDelta::Pixels { y, .. } => *y,
+                    mouse::ScrollDelta::Pixels { x, y } => *x + *y,
                 };
                 if delta_x != 0.0
                     && cursor

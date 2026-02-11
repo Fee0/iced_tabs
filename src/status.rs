@@ -1,19 +1,22 @@
 //! Status for widget events.
 //!
 /// The status of a widget (e.g. for styling).
+///
+/// Tab bar styling currently uses `Active`, `Hovered`, and `Disabled`.
+/// `Pressed`, `Focused`, and `Selected` are reserved for future use (e.g. keyboard focus, selection styling).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
-    /// can be pressed.
+    /// Can be pressed (e.g. the active tab).
     Active,
-    /// can be pressed and it is being hovered.
+    /// Can be pressed and it is being hovered.
     Hovered,
-    /// is being pressed.
+    /// Is being pressed. Reserved for future use.
     Pressed,
-    /// cannot be pressed.
+    /// Cannot be pressed (inactive tab).
     Disabled,
-    /// is focused.
+    /// Is focused. Reserved for future use.
     Focused,
-    /// is Selected.
+    /// Is selected. Reserved for future use.
     Selected,
 }
 

@@ -15,6 +15,7 @@ use iced::{
     mouse, touch, Alignment, Element, Event, Font, Length, Padding, Pixels, Point, Rectangle, Size,
 };
 use iced_fonts::{codicon::advanced_text, CODICON_FONT};
+use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -25,8 +26,7 @@ const CLOSE_HIT_AREA_MULTIPLIER: f32 = 1.3;
 
 /// A [`TabLabel`] showing an icon and/or a text on a tab
 /// on a [`TabBar`](super::TabBar).
-#[allow(missing_debug_implementations)]
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 pub enum TabLabel {
     /// A [`TabLabel`] showing only an icon on the tab.
     Icon(char),
@@ -100,6 +100,24 @@ where
     active_tab: usize,
     class: &'a <Theme as Catalog>::Class<'b>,
     _renderer: PhantomData<Renderer>,
+}
+
+impl<'a, 'b, Message, TabId, Theme, Renderer> fmt::Debug
+    for Tab<'a, 'b, Message, TabId, Theme, Renderer>
+where
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer,
+    Theme: Catalog,
+    TabId: Eq + Clone,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Tab")
+            .field("tab_labels", &self.tab_labels)
+            .field("tab_indices_len", &self.tab_indices.len())
+            .field("active_tab", &self.active_tab)
+            .field("has_close", &self.has_close)
+            .field("position", &self.position)
+            .finish()
+    }
 }
 
 impl<'a, 'b, Message, TabId, Theme, Renderer> Tab<'a, 'b, Message, TabId, Theme, Renderer>
