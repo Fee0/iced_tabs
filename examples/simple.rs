@@ -3,12 +3,12 @@
 // It was written by Kaiden42 <gitlab@tinysn.com>
 
 use iced::{
-    widget::{toggler, Button, Column, Row, Text, TextInput},
+    widget::{Button, Column, Row, Text, TextInput},
     Alignment, Element,
 };
 
 use iced_fonts::CODICON_FONT_BYTES;
-use iced_tabs::{dark, TabBar, TabLabel};
+use iced_tabs::{dark, ScrollMode, TabBar, TabLabel};
 
 fn main() -> iced::Result {
     iced::application(
@@ -27,7 +27,7 @@ enum Message {
     TabLabelInputChanged(String),
     TabContentInputChanged(String),
     NewTab,
-    ScrollbarBehaviorToggled(bool),
+    ScrollModeChanged(ScrollMode),
 }
 
 #[derive(Debug, Default)]
@@ -36,7 +36,7 @@ struct TabBarExample {
     new_tab_label: String,
     new_tab_content: String,
     tabs: Vec<(String, String)>,
-    scrollbar_floating: bool,
+    scroll_mode: ScrollMode,
 }
 
 impl TabBarExample {
@@ -70,7 +70,9 @@ impl TabBarExample {
                     self.new_tab_content.clear();
                 }
             }
-            Message::ScrollbarBehaviorToggled(floating) => self.scrollbar_floating = floating,
+            Message::ScrollModeChanged(mode) => {
+                self.scroll_mode = mode;
+            }
         }
     }
 
@@ -91,11 +93,28 @@ impl TabBarExample {
                             .padding(5.0),
                     )
                     .push(Button::new(Text::new("New")).on_press(Message::NewTab))
+                    .push(Text::new("Scroll mode:"))
                     .push(
-                        toggler(self.scrollbar_floating)
-                            .label("Scrollbar floating")
-                            .on_toggle(Message::ScrollbarBehaviorToggled)
-                            .size(16.0),
+                        Row::new()
+                            .spacing(4.0)
+                            .push(
+                                Button::new(Text::new("Floating"))
+                                    .on_press(Message::ScrollModeChanged(
+                                        ScrollMode::Floating,
+                                    )),
+                            )
+                            .push(
+                                Button::new(Text::new("Embedded"))
+                                    .on_press(Message::ScrollModeChanged(
+                                        ScrollMode::Embedded(4.0.into()),
+                                    )),
+                            )
+                            .push(
+                                Button::new(Text::new("Buttons"))
+                                    .on_press(Message::ScrollModeChanged(
+                                        ScrollMode::ButtonsOnly,
+                                    )),
+                            ),
                     )
                     .align_y(Alignment::Center)
                     .padding(10.0)
@@ -119,12 +138,9 @@ impl TabBarExample {
                     .spacing(5.0)
                     .padding(5.0)
                     .text_size(32.0)
-                    .style(dark);
-                if self.scrollbar_floating {
-                    tab_bar.scrollbar_floating()
-                } else {
-                    tab_bar.scrollbar_spacing(4.0)
-                }
+                    .style(dark)
+                    .scroll_mode(self.scroll_mode);
+                tab_bar
             })
             .push(
                 if let Some((_, content)) = self.tabs.get(self.active_tab) {
