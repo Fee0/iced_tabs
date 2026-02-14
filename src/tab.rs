@@ -577,7 +577,7 @@ fn draw_tab<Theme, Renderer>(
     Theme: Catalog + text::Catalog,
 {
     use iced::advanced::widget::text::{LineHeight, Wrapping};
-    use iced::{Background, Border, Color, Shadow};
+    use iced::{Background, Border, Color};
 
     fn icon_bound_rectangle(item: Option<Layout<'_>>) -> Rectangle {
         item.expect("Graphics: Layout should have an icons layout for an IconText")

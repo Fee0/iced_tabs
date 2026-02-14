@@ -65,6 +65,10 @@ pub struct TabStyle {
     /// The text color of the tab labels.
     pub text_color: Color,
 
+    /// Optional background for the scroll buttons (`<` / `>`) on hover. When `None`, scroll
+    /// buttons have no visible background and blend into the tab bar (default).
+    pub scroll_button_hover_background: Option<Background>,
+
     /// Shadow applied to each tab.
     pub shadow: Shadow,
 }
@@ -80,6 +84,7 @@ impl Default for TabStyle {
             icon_background: Some(Background::Color(Color::from_rgb(1.0, 0.0, 0.0))),
             icon_border_radius: 4.0.into(),
             text_color: Color::BLACK,
+            scroll_button_hover_background: Some(Background::Color(Color::from_rgb(1.0, 0.0, 0.0))),
             shadow: Shadow {
                 color: Color::BLACK,
                 offset: Vector::new(5.0, 5.0),

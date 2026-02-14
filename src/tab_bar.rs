@@ -955,24 +955,23 @@ fn draw_scroll_button<Theme, Renderer>(
         },
     );
 
-    // Optional subtle background on hover.
+    // Optional background on hover (when set by the theme; None = flat arrows on the bar).
     if is_hovered {
-        renderer.fill_quad(
-            renderer::Quad {
-                bounds,
-                border: Border {
-                    radius: style.tab.icon_border_radius,
-                    width: 0.0,
-                    color: Color::TRANSPARENT,
+        if let Some(background) = style.tab.scroll_button_hover_background {
+            renderer.fill_quad(
+                renderer::Quad {
+                    bounds,
+                    border: Border {
+                        radius: style.tab.icon_border_radius,
+                        width: 0.0,
+                        color: Color::TRANSPARENT,
+                    },
+                    shadow: Shadow::default(),
+                    ..renderer::Quad::default()
                 },
-                shadow: Shadow::default(),
-                ..renderer::Quad::default()
-            },
-            style
-                .tab
-                .icon_background
-                .unwrap_or_else(|| style.tab.label_background),
-        );
+                background,
+            );
+        }
     }
 
     // Draw the `<` / `>` glyph centered in the bounds.
