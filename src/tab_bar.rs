@@ -453,7 +453,7 @@ where
     }
 
     /// Returns the Scrollable wrapping TabBarContent (used to deliver scroll events in ButtonsOnly mode).
-    fn scrollable_element(&self) -> Element<Message, Theme, Renderer> {
+    fn scrollable_element(&self) -> Element<'_, Message, Theme, Renderer> {
         Element::new(
             Scrollable::with_direction(
                 Element::new(self.tab_content()),
@@ -465,7 +465,7 @@ where
     }
 
     /// Returns the inner element (Scrollable wrapping TabBarContent).
-    pub(crate) fn wrapper_element(&self) -> Element<Message, Theme, Renderer> {
+    pub(crate) fn wrapper_element(&self) -> Element<'_, Message, Theme, Renderer> {
         let content = self.tab_content();
         let scrollable =
             Scrollable::with_direction(Element::new(content), self.scrollbar_direction())
@@ -499,8 +499,8 @@ where
     Theme: Catalog + text::Catalog + scrollable::Catalog,
     TabId: Eq + Clone,
 {
-    fn size(&self) -> iced::Size<Length> {
-        iced::Size::new(self.width, self.height)
+    fn size(&self) -> Size<Length> {
+        Size::new(self.width, self.height)
     }
 
     fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
@@ -870,6 +870,10 @@ struct ScrollByOperation {
 }
 
 impl Operation<()> for ScrollByOperation {
+    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<()>)) {
+        operate(self);
+    }
+
     fn scrollable(
         &mut self,
         _id: Option<&iced::widget::Id>,
@@ -886,10 +890,6 @@ impl Operation<()> for ScrollByOperation {
             bounds,
             content_bounds,
         );
-    }
-
-    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<()>)) {
-        operate(self);
     }
 }
 
