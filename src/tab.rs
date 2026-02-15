@@ -705,10 +705,10 @@ where
                     .is_some_and(|d| d.tab_index == i)
             {
                 Status::Dragging
-            } else if cursor.is_over(tab_layout.bounds()) && !is_currently_dragging {
-                Status::Hovered
             } else if i == active_idx {
                 Status::Active
+            } else if cursor.is_over(tab_layout.bounds()) && !is_currently_dragging {
+                Status::Hovered
             } else {
                 Status::Inactive
             };
