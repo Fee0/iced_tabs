@@ -10,7 +10,7 @@ use iced::advanced::{
     widget::{operation::Scrollable as ScrollableOp, tree, Operation, Tree},
     Clipboard, Layout, Shell, Widget,
 };
-use iced::widget::{scrollable, text, Row, Scrollable, Space};
+use iced::widget::{container, scrollable, text, Row, Scrollable, Space};
 use iced::{
     Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Shadow, Size, Vector,
 };
@@ -187,7 +187,7 @@ where
 impl<'a, Message, TabId, Theme, Renderer> TabBar<'a, Message, TabId, Theme, Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: Catalog + text::Catalog + scrollable::Catalog,
+    Theme: Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
     /// Creates a new [`TabBar`] with the index of the selected tab and a specified
@@ -496,7 +496,7 @@ impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
     for TabBar<'_, Message, TabId, Theme, Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: Catalog + text::Catalog + scrollable::Catalog,
+    Theme: Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
     fn size(&self) -> Size<Length> {
@@ -851,7 +851,7 @@ impl<'a, Message, TabId, Theme, Renderer> From<TabBar<'a, Message, TabId, Theme,
     for Element<'a, Message, Theme, Renderer>
 where
     Renderer: 'a + renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: 'a + Catalog + text::Catalog + scrollable::Catalog,
+    Theme: 'a + Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
     Message: 'a,
     TabId: 'a + Eq + Clone,
 {

@@ -9,7 +9,7 @@ use iced::advanced::{
     widget::{tree, Operation, Tree},
     Clipboard, Layout, Shell, Widget,
 };
-use iced::widget::{text, Column, Row, Text};
+use iced::widget::{container, text, Column, Container, Row, Text};
 use iced::{
     alignment::{Horizontal, Vertical},
     mouse, touch, Alignment, Element, Event, Font, Length, Padding, Pixels, Point, Rectangle, Size,
@@ -123,7 +123,7 @@ where
 impl<'a, 'b, Message, TabId, Theme, Renderer> Tab<'a, 'b, Message, TabId, Theme, Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: Catalog + text::Catalog,
+    Theme: Catalog + text::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
     pub fn new(
@@ -201,6 +201,7 @@ where
                 .size(size)
                 .font(font.unwrap_or_default())
                 .align_x(Horizontal::Center)
+                .align_y(Vertical::Center)
                 .shaping(text::Shaping::Advanced)
                 .width(Length::Shrink)
         }
@@ -211,22 +212,23 @@ where
                 let mut label_row = Row::new()
                     .push(
                         match tab_label {
-                            TabLabel::Icon(icon) => Column::new().align_x(Alignment::Center).push(
+                            TabLabel::Icon(icon) => Container::new(
                                 layout_icon(icon, self.icon_size + LAYOUT_SIZE_OFFSET, self.font),
-                            ),
-                            TabLabel::Text(text) => Column::new()
-                                .padding(5.0)
-                                .align_x(Alignment::Center)
-                                .push(layout_text(
-                                    text.as_str(),
-                                    self.text_size + LAYOUT_SIZE_OFFSET,
-                                    self.text_font,
-                                )),
+                            )
+                            .align_x(Horizontal::Center)
+                            .align_y(Vertical::Center),
+                            TabLabel::Text(text) => Container::new(layout_text(
+                                text.as_str(),
+                                self.text_size + LAYOUT_SIZE_OFFSET,
+                                self.text_font,
+                            ))
+                            .align_x(Horizontal::Center)
+                            .align_y(Vertical::Center),
                             TabLabel::IconText(icon, text) => {
-                                let mut column = Column::new().align_x(Alignment::Center);
-                                match self.position {
-                                    Position::Top => {
-                                        column = column
+                                let inner: Element<'_, Message, Theme, Renderer> =
+                                    match self.position {
+                                        Position::Top => Column::new()
+                                            .align_x(Alignment::Center)
                                             .push(layout_icon(
                                                 icon,
                                                 self.icon_size + LAYOUT_SIZE_OFFSET,
@@ -236,43 +238,10 @@ where
                                                 text.as_str(),
                                                 self.text_size + LAYOUT_SIZE_OFFSET,
                                                 self.text_font,
-                                            ));
-                                    }
-                                    Position::Right => {
-                                        column = column.push(
-                                            Row::new()
-                                                .align_y(Alignment::Center)
-                                                .push(layout_text(
-                                                    text.as_str(),
-                                                    self.text_size + LAYOUT_SIZE_OFFSET,
-                                                    self.text_font,
-                                                ))
-                                                .push(layout_icon(
-                                                    icon,
-                                                    self.icon_size + LAYOUT_SIZE_OFFSET,
-                                                    self.font,
-                                                )),
-                                        );
-                                    }
-                                    Position::Left => {
-                                        column = column.push(
-                                            Row::new()
-                                                .align_y(Alignment::Center)
-                                                .push(layout_icon(
-                                                    icon,
-                                                    self.icon_size + LAYOUT_SIZE_OFFSET,
-                                                    self.font,
-                                                ))
-                                                .push(layout_text(
-                                                    text.as_str(),
-                                                    self.text_size + LAYOUT_SIZE_OFFSET,
-                                                    self.text_font,
-                                                )),
-                                        );
-                                    }
-                                    Position::Bottom => {
-                                        column = column
-                                            .height(Length::Fill)
+                                            ))
+                                            .into(),
+                                        Position::Right => Row::new()
+                                            .align_y(Alignment::Center)
                                             .push(layout_text(
                                                 text.as_str(),
                                                 self.text_size + LAYOUT_SIZE_OFFSET,
@@ -282,10 +251,38 @@ where
                                                 icon,
                                                 self.icon_size + LAYOUT_SIZE_OFFSET,
                                                 self.font,
-                                            ));
-                                    }
-                                }
-                                column
+                                            ))
+                                            .into(),
+                                        Position::Left => Row::new()
+                                            .align_y(Alignment::Center)
+                                            .push(layout_icon(
+                                                icon,
+                                                self.icon_size + LAYOUT_SIZE_OFFSET,
+                                                self.font,
+                                            ))
+                                            .push(layout_text(
+                                                text.as_str(),
+                                                self.text_size + LAYOUT_SIZE_OFFSET,
+                                                self.text_font,
+                                            ))
+                                            .into(),
+                                        Position::Bottom => Column::new()
+                                            .align_x(Alignment::Center)
+                                            .push(layout_text(
+                                                text.as_str(),
+                                                self.text_size + LAYOUT_SIZE_OFFSET,
+                                                self.text_font,
+                                            ))
+                                            .push(layout_icon(
+                                                icon,
+                                                self.icon_size + LAYOUT_SIZE_OFFSET,
+                                                self.font,
+                                            ))
+                                            .into(),
+                                    };
+                                Container::new(inner)
+                                    .align_x(Horizontal::Center)
+                                    .align_y(Vertical::Center)
                             }
                         }
                         .width(Length::Shrink)
@@ -331,7 +328,7 @@ impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
     for Tab<'_, '_, Message, TabId, Theme, Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: Catalog + text::Catalog,
+    Theme: Catalog + text::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
     fn size(&self) -> Size<Length> {
@@ -663,8 +660,12 @@ fn draw_tab<Theme, Renderer>(
 
             match position {
                 Position::Top => {
-                    icon_bounds = icon_bound_rectangle(label_layout_children.next());
-                    text_bounds = text_bound_rectangle(label_layout_children.next());
+                    let mut inner_children = label_layout_children
+                        .next()
+                        .expect("Graphics: Top Layout should have an inner layout")
+                        .children();
+                    icon_bounds = icon_bound_rectangle(inner_children.next());
+                    text_bounds = text_bound_rectangle(inner_children.next());
                 }
                 Position::Right => {
                     let mut row_children = label_layout_children
@@ -683,8 +684,12 @@ fn draw_tab<Theme, Renderer>(
                     text_bounds = text_bound_rectangle(row_children.next());
                 }
                 Position::Bottom => {
-                    text_bounds = text_bound_rectangle(label_layout_children.next());
-                    icon_bounds = icon_bound_rectangle(label_layout_children.next());
+                    let mut inner_children = label_layout_children
+                        .next()
+                        .expect("Graphics: Bottom Layout should have an inner layout")
+                        .children();
+                    text_bounds = text_bound_rectangle(inner_children.next());
+                    icon_bounds = icon_bound_rectangle(inner_children.next());
                 }
             }
 
