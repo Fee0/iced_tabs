@@ -81,21 +81,17 @@ impl TabBarExample {
     fn update(&mut self, message: Message) {
         match message {
             Message::TabSelected(index) => {
-                println!("Tab selected: {}", index);
-                self.active_tab = index
+                self.active_tab = index;
             }
             Message::TabClosed(index) => {
                 self.tabs.remove(index);
-                println!("active tab before: {}", self.active_tab);
                 self.active_tab = if self.tabs.is_empty() {
                     0
                 } else {
-                    usize::max(0, usize::min(self.active_tab, self.tabs.len() - 1))
+                    self.active_tab.min(self.tabs.len() - 1)
                 };
-                println!("active tab after: {}", self.active_tab);
             }
             Message::TabReordered(from, to) => {
-                println!("Tab reordered: {} -> {}", from, to);
                 if from < self.tabs.len() && to < self.tabs.len() {
                     let tab = self.tabs.remove(from);
                     self.tabs.insert(to, tab);
@@ -113,9 +109,7 @@ impl TabBarExample {
             Message::TabLabelInputChanged(value) => self.new_tab_label = value,
             Message::TabContentInputChanged(value) => self.new_tab_content = value,
             Message::NewTab => {
-                println!("New");
                 if !self.new_tab_label.is_empty() && !self.new_tab_content.is_empty() {
-                    println!("Create");
                     self.tabs.push((
                         self.new_tab_label.to_owned(),
                         self.new_tab_content.to_owned(),

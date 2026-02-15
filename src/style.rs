@@ -1,12 +1,7 @@
 //! Style and theme for the [`TabBar`](crate::TabBar).
-//!
-//! You have to manage the logic to show the content yourself.
-//!
-//! *This API requires the following crate features to be activated: `tab_bar`*
 
 use crate::status::{Status, StyleFn};
 use iced::{Background, Color, Shadow, Theme, border::Radius};
-use std::str::FromStr;
 
 /// Combined style used by the [`TabBar`](crate::TabBar).
 #[derive(Clone, Copy, Debug, Default)]
@@ -65,23 +60,20 @@ pub struct TabStyle {
     pub text_color: Color,
     /// Shadow applied to each tab.
     pub shadow: Shadow,
-    /// Color of the drop indicator line shown during drag-and-drop reordering.
-    pub drop_indicator_color: Color,
 }
 
 impl Default for TabStyle {
     fn default() -> Self {
         Self {
-            background: Background::Color(Color::from_str("#5c6364").unwrap()),
+            background: Background::Color(Color::from_rgb(0.36, 0.39, 0.39)),
             border_color: [0.5, 0.5, 0.5].into(),
             border_radius: Radius::new(5.0),
             border_width: 1.0,
             icon_color: [0.5, 0.5, 0.5].into(),
-            icon_background: Some(Background::Color(Color::from_rgb(1.0, 0.0, 0.0))),
+            icon_background: Some(Background::Color(Color::from_rgba(0.5, 0.5, 0.5, 0.3))),
             icon_border_radius: 4.0.into(),
             text_color: [0.9, 0.9, 0.9].into(),
             shadow: Shadow::default(),
-            drop_indicator_color: [0.9, 0.9, 0.9].into(),
         }
     }
 }

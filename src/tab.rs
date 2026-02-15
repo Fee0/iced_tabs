@@ -18,7 +18,7 @@ use iced::advanced::svg;
 use iced_fonts::CODICON_FONT;
 use std::fmt;
 use std::marker::PhantomData;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 /// Offset added to icon/text size during layout to prevent clipping.
 const LAYOUT_SIZE_OFFSET: f32 = 1.0;
@@ -26,6 +26,9 @@ const LAYOUT_SIZE_OFFSET: f32 = 1.0;
 const CLOSE_HIT_AREA_MULTIPLIER: f32 = 1.3;
 /// SVG bytes for the close (X) icon.
 const CLOSE_SVG: &[u8] = include_bytes!("../assets/close.svg");
+/// Cached SVG handle for the close icon (avoids re-allocating on every draw call).
+static CLOSE_SVG_HANDLE: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(CLOSE_SVG));
 /// Minimum mouse movement (in pixels) before a press is considered a drag.
 const DRAG_THRESHOLD: f32 = 5.0;
 
@@ -962,7 +965,7 @@ fn draw_tab<Theme, Renderer>(
         let cross_bounds = cross_layout.bounds();
         let is_mouse_over_cross = tab_status.1.unwrap_or(false);
 
-        let handle = svg::Handle::from_memory(CLOSE_SVG);
+        let handle = CLOSE_SVG_HANDLE.clone();
         let svg_size = close_size + if is_mouse_over_cross { 1.0 } else { 0.0 };
         let svg_bounds = Rectangle {
             x: cross_bounds.center_x() - svg_size / 2.0,

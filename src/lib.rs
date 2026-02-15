@@ -6,5 +6,5 @@ mod tab_bar;
 pub use {
     style::*,
     tab::TabLabel,
-    tab_bar::{ScrollMode, TabBar},
+    tab_bar::{Position, ScrollMode, TabBar},
 };

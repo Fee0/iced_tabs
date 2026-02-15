@@ -1,8 +1,6 @@
 //! Displays a [`TabBar`] to select the content to be displayed.
 //!
 //! You have to manage the logic to show the content yourself.
-//!
-//! *This API requires the following crate features to be activated: `tab_bar`*
 
 use iced::advanced::{
     layout::{Limits, Node},
@@ -184,13 +182,10 @@ where
     Theme: Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
-    /// Creates a new [`TabBar`] with the index of the selected tab and a specified
-    /// message which will be send when a tab is selected by the user.
+    /// Creates a new empty [`TabBar`].
     ///
-    /// It expects:
-    ///     * the index of the currently active tab.
-    ///     * the function that will be called if a tab is selected by the user.
-    ///         It takes the index of the selected tab.
+    /// It expects the function that will be called if a tab is selected by
+    /// the user. The function receives the id of the selected tab.
     pub fn new<F>(on_select: F) -> Self
     where
         F: 'static + Fn(TabId) -> Message,
@@ -198,13 +193,12 @@ where
         Self::with_tab_labels(Vec::new(), on_select)
     }
 
-    /// Similar to [`new`](Self::new) but with a given Vector of the [`TabLabel`]s.
+    /// Similar to [`new`](Self::new) but with a given vector of [`TabLabel`]s.
     ///
     /// It expects:
-    ///     * the index of the currently active tab.
-    ///     * a vector containing the [`TabLabel`]s of the [`TabBar`].
+    ///     * a vector of `(TabId, TabLabel)` pairs for the initial tabs.
     ///     * the function that will be called if a tab is selected by the user.
-    ///         It takes the index of the selected tab.
+    ///         The function receives the id of the selected tab.
     pub fn with_tab_labels<F>(tab_labels: Vec<(TabId, TabLabel)>, on_select: F) -> Self
     where
         F: 'static + Fn(TabId) -> Message,
