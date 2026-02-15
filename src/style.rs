@@ -151,7 +151,7 @@ pub fn primary(theme: &Theme, status: Status) -> Style {
         Status::Hovered => {
             base.tab.label_background = Background::Color(palette.primary.strong.color);
         }
-        _ => {
+        Status::Active => {
             base.tab.label_background = Background::Color(palette.primary.base.color);
         }
     }
@@ -170,81 +170,6 @@ pub fn dark(_theme: &Theme, status: Status) -> Style {
 
     if status == Status::Disabled {
         base.tab.label_background = Background::Color([0.13, 0.13, 0.13].into());
-    }
-
-    base
-}
-
-/// The red theme of a [`TabBar`](crate::TabBar).
-#[must_use]
-pub fn red(_theme: &Theme, status: Status) -> Style {
-    let mut base = Style::default();
-    base.tab.label_background = Background::Color([1.0, 0.0, 0.0].into());
-    base.tab.label_border_color = Color::TRANSPARENT;
-    base.tab.label_border_width = 0.0;
-    base.tab.icon_color = Color::WHITE;
-    base.tab.text_color = Color::WHITE;
-
-    if status == Status::Disabled {
-        base.tab.label_background = Background::Color([0.13, 0.13, 0.13].into());
-        base.tab.icon_color = Color::BLACK;
-        base.tab.text_color = Color::BLACK;
-    }
-
-    base
-}
-
-/// The blue theme of a [`TabBar`](crate::TabBar).
-#[must_use]
-pub fn blue(_theme: &Theme, status: Status) -> Style {
-    let mut base = Style::default();
-    base.tab.label_background = Background::Color([0.0, 0.0, 1.0].into());
-    base.tab.label_border_color = [0.0, 0.0, 1.0].into();
-    base.tab.icon_color = Color::WHITE;
-    base.tab.text_color = Color::WHITE;
-
-    if status == Status::Disabled {
-        base.tab.label_background = Background::Color([0.5, 0.5, 1.0].into());
-        base.tab.label_border_color = [0.5, 0.5, 1.0].into();
-    }
-
-    base
-}
-
-/// The green theme of a [`TabBar`](crate::TabBar).
-#[must_use]
-pub fn green(_theme: &Theme, status: Status) -> Style {
-    let mut base = Style::default();
-    base.tab.label_background = Color::WHITE.into();
-    base.tab.icon_color = [0.0, 0.5, 0.0].into();
-    base.tab.text_color = [0.0, 0.5, 0.0].into();
-
-    match status {
-        Status::Disabled => {
-            base.tab.icon_color = [0.7, 0.7, 0.7].into();
-            base.tab.text_color = [0.7, 0.7, 0.7].into();
-            base.tab.label_border_color = [0.7, 0.7, 0.7].into();
-        }
-        _ => {
-            base.tab.label_border_color = [0.0, 0.5, 0.0].into();
-        }
-    }
-
-    base
-}
-
-/// The purple theme of a [`TabBar`](crate::TabBar).
-#[must_use]
-pub fn purple(_theme: &Theme, status: Status) -> Style {
-    let mut base = Style::default();
-    base.tab.label_background = Color::WHITE.into();
-    base.tab.label_border_color = Color::TRANSPARENT;
-    base.tab.icon_color = [0.7, 0.0, 1.0].into();
-    base.tab.text_color = [0.7, 0.0, 1.0].into();
-
-    if status == Status::Disabled {
-        base.tab.icon_color = Color::BLACK;
-        base.tab.text_color = Color::BLACK;
     }
 
     base

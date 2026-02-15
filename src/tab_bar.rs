@@ -804,11 +804,7 @@ where
             }
         }
 
-        // Sync tab_statuses from TabBarContent's tree state (correct cursor for hover in both layouts)
         if let Some(wrapper_tree) = state.children.get_mut(0) {
-            // Structure differs depending on scroll mode:
-            // - Floating/Embedded: wrapper_element = Scrollable -> TabBarContent
-            // - ButtonsOnly: wrapper_element = Row -> Scrollable -> TabBarContent
             let scrollable_child_index = match self.scroll_buttons_position {
                 ScrollButtonsPosition::Left => 1,
                 ScrollButtonsPosition::Right => 0,
