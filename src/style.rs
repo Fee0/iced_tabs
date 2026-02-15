@@ -142,24 +142,3 @@ pub fn primary(theme: &Theme, status: Status) -> Style {
     base
 }
 
-/// The dark theme of a [`TabBar`](crate::TabBar).
-#[must_use]
-pub fn dark(_theme: &Theme, status: Status) -> Style {
-    let mut base = Style::default();
-    base.tab.background = Background::Color([0.1, 0.1, 0.1].into());
-    base.tab.border_color = [0.3, 0.3, 0.3].into();
-    base.tab.icon_color = Color::WHITE;
-    base.tab.text_color = Color::WHITE;
-
-    match status {
-        Status::Inactive => {
-            base.tab.background = Background::Color([0.13, 0.13, 0.13].into());
-        }
-        Status::Dragging => {
-            base.tab.background = Background::Color(Color::from_rgba(0.1, 0.1, 0.1, 0.5));
-        }
-        _ => {}
-    }
-
-    base
-}
