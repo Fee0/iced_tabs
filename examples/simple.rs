@@ -9,7 +9,7 @@ use iced::{
 use std::fmt;
 
 use iced_fonts::CODICON_FONT_BYTES;
-use iced_tabs::{dark, ScrollMode, TabBar, TabLabel};
+use iced_tabs::{ScrollMode, TabBar, TabLabel};
 
 fn main() -> iced::Result {
     iced::application(

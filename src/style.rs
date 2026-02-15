@@ -78,7 +78,7 @@ impl Default for TabStyle {
 }
 
 /// Combined style used by the [`TabBar`](crate::TabBar).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Style {
     /// Style of the outer bar container.
     pub bar: BarStyle,
@@ -87,14 +87,6 @@ pub struct Style {
     pub tab: TabStyle,
 }
 
-impl Default for Style {
-    fn default() -> Self {
-        Self {
-            bar: BarStyle::default(),
-            tab: TabStyle::default(),
-        }
-    }
-}
 /// The Catalog of a [`TabBar`](crate::TabBar).
 pub trait Catalog {
     ///Style for the trait to use.
@@ -121,9 +113,8 @@ impl Catalog for Theme {
 
 /// The primary theme of a [`TabBar`](crate::TabBar).
 #[must_use]
-pub fn primary(theme: &Theme, status: Status) -> Style {
+pub fn primary(_theme: &Theme, status: Status) -> Style {
     let mut base = Style::default();
-    let palette = theme.extended_palette();
 
     match status {
         Status::Inactive => {
