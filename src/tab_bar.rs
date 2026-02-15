@@ -152,6 +152,8 @@ pub enum ScrollMode {
     /// Scrollbar is hidden; scrolling is done via mouse wheel and `<` / `>` buttons.
     /// Button position (left or right) is set via [`scroll_buttons_position`](TabBar::scroll_buttons_position) (default left).
     ButtonsOnly,
+    /// Scrollbar is hidden and no buttons are shown; scrolling is only possible via mouse wheel.
+    Blank,
 }
 
 /// Where the `<` / `>` scroll buttons are placed when using [`ScrollMode::ButtonsOnly`].
@@ -438,7 +440,7 @@ where
         let scrollbar = match self.scroll_mode {
             ScrollMode::Floating => scrollable::Scrollbar::default(),
             ScrollMode::Embedded(spacing) => scrollable::Scrollbar::default().spacing(spacing),
-            ScrollMode::ButtonsOnly => scrollable::Scrollbar::hidden(),
+            ScrollMode::ButtonsOnly | ScrollMode::Blank => scrollable::Scrollbar::hidden(),
         };
         scrollable::Direction::Horizontal(scrollbar)
     }
