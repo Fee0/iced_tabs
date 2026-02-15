@@ -2,19 +2,20 @@
 
 use crate::status::Status;
 use crate::style::Catalog;
-use crate::tab_bar::Position;
+use crate::tab_bar::{Position, ensure_child_tree};
+use iced::advanced::svg;
 use iced::advanced::{
+    Clipboard, Layout, Shell, Widget,
     layout::{Limits, Node},
     renderer,
-    widget::{tree, Operation, Tree},
-    Clipboard, Layout, Shell, Widget,
+    widget::{Operation, Tree, tree},
 };
-use iced::widget::{container, text, Column, Container, Row, Space, Text};
+use iced::widget::{Column, Container, Row, Space, Text, container, text};
 use iced::{
+    Alignment, Element, Event, Font, Length, Padding, Pixels, Point, Rectangle, Size,
     alignment::{Horizontal, Vertical},
-    mouse, touch, Alignment, Element, Event, Font, Length, Padding, Pixels, Point, Rectangle, Size,
+    mouse, touch,
 };
-use iced::advanced::svg;
 use iced_fonts::CODICON_FONT;
 use std::fmt;
 use std::marker::PhantomData;
@@ -244,9 +245,11 @@ where
                 let mut label_row = Row::new()
                     .push(
                         match tab_label {
-                            TabLabel::Icon(icon) => Container::new(
-                                layout_icon(icon, self.icon_size + LAYOUT_SIZE_OFFSET, self.font),
-                            )
+                            TabLabel::Icon(icon) => Container::new(layout_icon(
+                                icon,
+                                self.icon_size + LAYOUT_SIZE_OFFSET,
+                                self.font,
+                            ))
                             .align_x(Horizontal::Center)
                             .align_y(Vertical::Center),
                             TabLabel::Text(text) => Container::new(layout_text(
@@ -257,60 +260,37 @@ where
                             .align_x(Horizontal::Center)
                             .align_y(Vertical::Center),
                             TabLabel::IconText(icon, text) => {
+                                let icon_el = layout_icon(
+                                    icon,
+                                    self.icon_size + LAYOUT_SIZE_OFFSET,
+                                    self.font,
+                                );
+                                let text_el = layout_text(
+                                    text.as_str(),
+                                    self.text_size + LAYOUT_SIZE_OFFSET,
+                                    self.text_font,
+                                );
+                                let (first, second): (
+                                    Element<'_, Message, Theme, Renderer>,
+                                    Element<'_, Message, Theme, Renderer>,
+                                ) = if self.position.is_icon_first() {
+                                    (icon_el.into(), text_el.into())
+                                } else {
+                                    (text_el.into(), icon_el.into())
+                                };
                                 let inner: Element<'_, Message, Theme, Renderer> =
-                                    match self.position {
-                                        Position::Top => Column::new()
+                                    if self.position.is_vertical() {
+                                        Column::new()
                                             .align_x(Alignment::Center)
-                                            .push(layout_icon(
-                                                icon,
-                                                self.icon_size + LAYOUT_SIZE_OFFSET,
-                                                self.font,
-                                            ))
-                                            .push(layout_text(
-                                                text.as_str(),
-                                                self.text_size + LAYOUT_SIZE_OFFSET,
-                                                self.text_font,
-                                            ))
-                                            .into(),
-                                        Position::Right => Row::new()
+                                            .push(first)
+                                            .push(second)
+                                            .into()
+                                    } else {
+                                        Row::new()
                                             .align_y(Alignment::Center)
-                                            .push(layout_text(
-                                                text.as_str(),
-                                                self.text_size + LAYOUT_SIZE_OFFSET,
-                                                self.text_font,
-                                            ))
-                                            .push(layout_icon(
-                                                icon,
-                                                self.icon_size + LAYOUT_SIZE_OFFSET,
-                                                self.font,
-                                            ))
-                                            .into(),
-                                        Position::Left => Row::new()
-                                            .align_y(Alignment::Center)
-                                            .push(layout_icon(
-                                                icon,
-                                                self.icon_size + LAYOUT_SIZE_OFFSET,
-                                                self.font,
-                                            ))
-                                            .push(layout_text(
-                                                text.as_str(),
-                                                self.text_size + LAYOUT_SIZE_OFFSET,
-                                                self.text_font,
-                                            ))
-                                            .into(),
-                                        Position::Bottom => Column::new()
-                                            .align_x(Alignment::Center)
-                                            .push(layout_text(
-                                                text.as_str(),
-                                                self.text_size + LAYOUT_SIZE_OFFSET,
-                                                self.text_font,
-                                            ))
-                                            .push(layout_icon(
-                                                icon,
-                                                self.icon_size + LAYOUT_SIZE_OFFSET,
-                                                self.font,
-                                            ))
-                                            .into(),
+                                            .push(first)
+                                            .push(second)
+                                            .into()
                                     };
                                 Container::new(inner)
                                     .align_x(Horizontal::Center)
@@ -364,16 +344,8 @@ where
     }
 
     fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
-        let row = self.row_element();
-        let mut element = Element::new(row);
-        let tab_tree = if let Some(child_tree) = tree.children.get_mut(0) {
-            child_tree.diff(element.as_widget_mut());
-            child_tree
-        } else {
-            let child_tree = Tree::new(element.as_widget());
-            tree.children.insert(0, child_tree);
-            &mut tree.children[0]
-        };
+        let mut element = Element::new(self.row_element());
+        let tab_tree = ensure_child_tree(&mut tree.children, &mut element);
 
         element
             .as_widget_mut()
@@ -387,7 +359,7 @@ where
         theme: &Theme,
         _style: &renderer::Style,
         layout: Layout<'_>,
-        cursor: mouse::Cursor,
+        _cursor: mouse::Cursor,
         viewport: &Rectangle,
     ) {
         let content_state = state.state.downcast_ref::<TabBarContentState>();
@@ -396,25 +368,21 @@ where
 
         let tab_layouts: Vec<_> = layout.children().collect();
 
+        let ctx = DrawCtx {
+            position: self.position,
+            theme,
+            class: self.class,
+            icon_data: (self.font.unwrap_or(CODICON_FONT), self.icon_size),
+            text_data: (self.text_font.unwrap_or_default(), self.text_size),
+            close_size: self.close_size,
+            viewport,
+        };
+
         if !is_dragging {
             // Normal (non-drag) drawing: each tab at its own layout position.
             for ((i, tab), tab_layout) in self.tab_labels.iter().enumerate().zip(&tab_layouts) {
                 let tab_status = self.tab_statuses.get(i).expect("Should have a status.");
-
-                draw_tab(
-                    renderer,
-                    tab,
-                    tab_status,
-                    *tab_layout,
-                    self.position,
-                    theme,
-                    self.class,
-                    cursor,
-                    (self.font.unwrap_or(CODICON_FONT), self.icon_size),
-                    (self.text_font.unwrap_or_default(), self.text_size),
-                    self.close_size,
-                    viewport,
-                );
+                draw_tab(renderer, tab, tab_status, *tab_layout, &ctx);
             }
         } else if let Some(drag) = drag {
             let dragged_idx = drag.tab_index;
@@ -435,47 +403,21 @@ where
                 }
 
                 let tab = &self.tab_labels[tab_idx];
-                let tab_status = self.tab_statuses.get(tab_idx).expect("Should have a status.");
+                let tab_status = self
+                    .tab_statuses
+                    .get(tab_idx)
+                    .expect("Should have a status.");
 
                 let original_bounds = tab_layouts[tab_idx].bounds();
                 let slot_bounds = tab_layouts[slot].bounds();
                 let offset_x = slot_bounds.x - original_bounds.x;
 
                 if offset_x.abs() < 0.5 {
-                    draw_tab(
-                        renderer,
-                        tab,
-                        tab_status,
-                        tab_layouts[tab_idx],
-                        self.position,
-                        theme,
-                        self.class,
-                        cursor,
-                        (self.font.unwrap_or(CODICON_FONT), self.icon_size),
-                        (self.text_font.unwrap_or_default(), self.text_size),
-                        self.close_size,
-                        viewport,
-                    );
+                    draw_tab(renderer, tab, tab_status, tab_layouts[tab_idx], &ctx);
                 } else {
-                    renderer.with_translation(
-                        iced::Vector::new(offset_x, 0.0),
-                        |renderer| {
-                            draw_tab(
-                                renderer,
-                                tab,
-                                tab_status,
-                                tab_layouts[tab_idx],
-                                self.position,
-                                theme,
-                                self.class,
-                                cursor,
-                                (self.font.unwrap_or(CODICON_FONT), self.icon_size),
-                                (self.text_font.unwrap_or_default(), self.text_size),
-                                self.close_size,
-                                viewport,
-                            );
-                        },
-                    );
+                    renderer.with_translation(iced::Vector::new(offset_x, 0.0), |renderer| {
+                        draw_tab(renderer, tab, tab_status, tab_layouts[tab_idx], &ctx);
+                    });
                 }
             }
 
@@ -485,27 +427,17 @@ where
                 let offset_x = drag.current_pos.x - drag.tab_offset_x - original_bounds.x;
                 let offset_y = drag.current_pos.y - original_bounds.center_y();
 
-                renderer.with_translation(
-                    iced::Vector::new(offset_x, offset_y),
-                    |renderer| {
-                        let dragged_tab = &self.tab_labels[dragged_idx];
-                        let dragged_status = (Some(Status::Dragging), None);
-                        draw_tab(
-                            renderer,
-                            dragged_tab,
-                            &dragged_status,
-                            *dragged_layout,
-                            self.position,
-                            theme,
-                            self.class,
-                            cursor,
-                            (self.font.unwrap_or(CODICON_FONT), self.icon_size),
-                            (self.text_font.unwrap_or_default(), self.text_size),
-                            self.close_size,
-                            viewport,
-                        );
-                    },
-                );
+                renderer.with_translation(iced::Vector::new(offset_x, offset_y), |renderer| {
+                    let dragged_tab = &self.tab_labels[dragged_idx];
+                    let dragged_status = (Some(Status::Dragging), None);
+                    draw_tab(
+                        renderer,
+                        dragged_tab,
+                        &dragged_status,
+                        *dragged_layout,
+                        &ctx,
+                    );
+                });
             }
         }
     }
@@ -564,16 +496,8 @@ where
         let content_state = state.state.downcast_mut::<TabBarContentState>();
         content_state.tab_statuses.clone_from(&self.tab_statuses);
 
-        let row = self.row_element();
-        let mut element = Element::new(row);
-        let tab_tree = if let Some(child_tree) = state.children.get_mut(0) {
-            child_tree.diff(element.as_widget_mut());
-            child_tree
-        } else {
-            let child_tree = Tree::new(element.as_widget());
-            state.children.insert(0, child_tree);
-            &mut state.children[0]
-        };
+        let mut element = Element::new(self.row_element());
+        let tab_tree = ensure_child_tree(&mut state.children, &mut element);
 
         element.as_widget_mut().update(
             tab_tree, event, layout, cursor, renderer, clipboard, shell, viewport,
@@ -581,72 +505,48 @@ where
 
         let tab_layouts: Vec<_> = layout.children().collect();
 
-        let is_currently_dragging = content_state
-            .drag
-            .as_ref()
-            .is_some_and(|d| d.is_dragging);
+        let is_currently_dragging = content_state.drag.as_ref().is_some_and(|d| d.is_dragging);
 
         match event {
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
             | Event::Touch(touch::Event::FingerPressed { .. }) => {
-                if !shell.is_event_captured()
-                    && cursor
-                        .position()
-                        .is_some_and(|pos| layout.bounds().contains(pos))
+                if let Some(pos) = cursor.position()
+                    && !shell.is_event_captured()
+                    && layout.bounds().contains(pos)
+                    && let Some(new_selected) =
+                        tab_layouts.iter().position(|tl| tl.bounds().contains(pos))
                 {
-                    let tabs_map: Vec<bool> = tab_layouts
-                        .iter()
-                        .map(|tab_layout| {
-                            cursor
-                                .position()
-                                .is_some_and(|pos| tab_layout.bounds().contains(pos))
-                        })
-                        .collect();
+                    let tab_layout = &tab_layouts[new_selected];
 
-                    if let Some(new_selected) = tabs_map.iter().position(|b| *b) {
-                        let tab_layout = tab_layouts.get(new_selected).expect(
-                            "TabBarContent: Layout should have a tab layout at the selected index",
-                        );
-
-                        let is_close_click = if let Some(on_close) = self.on_close.as_ref() {
-                            let cross_layout = tab_layout
-                                .children()
-                                .nth(1)
-                                .expect("TabBarContent: Layout should have a close layout");
-                            if cursor
-                                .position()
-                                .is_some_and(|pos| cross_layout.bounds().contains(pos))
-                            {
-                                shell.publish(on_close(
-                                    self.tab_indices[new_selected].clone(),
-                                ));
-                                shell.capture_event();
-                                true
-                            } else {
-                                false
-                            }
+                    let is_close_click = if let Some(on_close) = self.on_close.as_ref() {
+                        let cross_layout = tab_layout
+                            .children()
+                            .nth(1)
+                            .expect("TabBarContent: Layout should have a close layout");
+                        if cross_layout.bounds().contains(pos) {
+                            shell.publish(on_close(self.tab_indices[new_selected].clone()));
+                            shell.capture_event();
+                            true
                         } else {
                             false
-                        };
+                        }
+                    } else {
+                        false
+                    };
 
-                        if !is_close_click {
-                            shell.publish((self.on_select)(
-                                self.tab_indices[new_selected].clone(),
-                            ));
-                            shell.capture_event();
+                    if !is_close_click {
+                        shell.publish((self.on_select)(self.tab_indices[new_selected].clone()));
+                        shell.capture_event();
 
-                            if self.on_reorder.is_some() {
-                                if let Some(pos) = cursor.position() {
-                                    let tab_bounds = tab_layout.bounds();
-                                    content_state.drag = Some(DragState {
-                                        tab_index: new_selected,
-                                        press_origin: pos,
-                                        current_pos: pos,
-                                        is_dragging: false,
-                                        tab_offset_x: pos.x - tab_bounds.x,
-                                    });
-                                }
-                            }
+                        if self.on_reorder.is_some() {
+                            let tab_bounds = tab_layout.bounds();
+                            content_state.drag = Some(DragState {
+                                tab_index: new_selected,
+                                press_origin: pos,
+                                current_pos: pos,
+                                is_dragging: false,
+                                tab_offset_x: pos.x - tab_bounds.x,
+                            });
                         }
                     }
                 }
@@ -654,20 +554,20 @@ where
 
             Event::Mouse(mouse::Event::CursorMoved { .. })
             | Event::Touch(touch::Event::FingerMoved { .. }) => {
-                if let Some(drag) = content_state.drag.as_mut() {
-                    if let Some(pos) = cursor.position() {
-                        drag.current_pos = pos;
-                        if !drag.is_dragging {
-                            let dx = pos.x - drag.press_origin.x;
-                            let dy = pos.y - drag.press_origin.y;
-                            if (dx * dx + dy * dy).sqrt() >= DRAG_THRESHOLD {
-                                drag.is_dragging = true;
-                            }
+                if let Some(drag) = content_state.drag.as_mut()
+                    && let Some(pos) = cursor.position()
+                {
+                    drag.current_pos = pos;
+                    if !drag.is_dragging {
+                        let dx = pos.x - drag.press_origin.x;
+                        let dy = pos.y - drag.press_origin.y;
+                        if dx * dx + dy * dy >= DRAG_THRESHOLD * DRAG_THRESHOLD {
+                            drag.is_dragging = true;
                         }
-                        if drag.is_dragging {
-                            shell.request_redraw();
-                            shell.capture_event();
-                        }
+                    }
+                    if drag.is_dragging {
+                        shell.request_redraw();
+                        shell.capture_event();
                     }
                 }
             }
@@ -675,18 +575,18 @@ where
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
             | Event::Touch(touch::Event::FingerLifted { .. })
             | Event::Touch(touch::Event::FingerLost { .. }) => {
-                if let Some(drag) = content_state.drag.take() {
-                    if drag.is_dragging {
-                        if let Some(on_reorder) = self.on_reorder.as_ref() {
-                            let target =
-                                compute_drop_index(&tab_layouts, drag.current_pos.x, drag.tab_index);
-                            if target != drag.tab_index {
-                                shell.publish(on_reorder(drag.tab_index, target));
-                            }
+                if let Some(drag) = content_state.drag.take()
+                    && drag.is_dragging
+                {
+                    if let Some(on_reorder) = self.on_reorder.as_ref() {
+                        let target =
+                            compute_drop_index(&tab_layouts, drag.current_pos.x, drag.tab_index);
+                        if target != drag.tab_index {
+                            shell.publish(on_reorder(drag.tab_index, target));
                         }
-                        shell.request_redraw();
-                        shell.capture_event();
                     }
+                    shell.request_redraw();
+                    shell.capture_event();
                 }
             }
 
@@ -747,11 +647,7 @@ where
     ) -> mouse::Interaction {
         let content_state = state.state.downcast_ref::<TabBarContentState>();
 
-        if content_state
-            .drag
-            .as_ref()
-            .is_some_and(|d| d.is_dragging)
-        {
+        if content_state.drag.as_ref().is_some_and(|d| d.is_dragging) {
             return mouse::Interaction::Grabbing;
         }
 
@@ -787,20 +683,25 @@ fn compute_drop_index(tab_layouts: &[Layout<'_>], cursor_x: f32, dragged_index: 
     target
 }
 
-#[allow(clippy::too_many_lines, clippy::too_many_arguments)]
+/// Bundles the common parameters shared across all `draw_tab` calls within a
+/// single `Tab::draw` invocation, avoiding repetitive argument lists.
+struct DrawCtx<'a, 'b, Theme: Catalog> {
+    position: Position,
+    theme: &'a Theme,
+    class: &'a <Theme as Catalog>::Class<'b>,
+    icon_data: (Font, f32),
+    text_data: (Font, f32),
+    close_size: f32,
+    viewport: &'a Rectangle,
+}
+
+#[allow(clippy::too_many_lines)]
 fn draw_tab<Theme, Renderer>(
     renderer: &mut Renderer,
     tab: &TabLabel,
     tab_status: &(Option<Status>, Option<bool>),
     layout: Layout<'_>,
-    position: Position,
-    theme: &Theme,
-    class: &<Theme as Catalog>::Class<'_>,
-    _cursor: mouse::Cursor,
-    icon_data: (Font, f32),
-    text_data: (Font, f32),
-    close_size: f32,
-    viewport: &Rectangle,
+    ctx: &DrawCtx<'_, '_, Theme>,
 ) where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font> + svg::Renderer,
     Theme: Catalog + text::Catalog,
@@ -808,19 +709,18 @@ fn draw_tab<Theme, Renderer>(
     use iced::advanced::widget::text::{LineHeight, Wrapping};
     use iced::{Background, Border, Color};
 
-    fn icon_bound_rectangle(item: Option<Layout<'_>>) -> Rectangle {
-        item.expect("Graphics: Layout should have an icons layout for an IconText")
-            .bounds()
-    }
-
-    fn text_bound_rectangle(item: Option<Layout<'_>>) -> Rectangle {
-        item.expect("Graphics: Layout should have an texts layout for an IconText")
+    fn child_bounds(item: Option<Layout<'_>>) -> Rectangle {
+        item.expect("Graphics: Layout should have a child layout")
             .bounds()
     }
 
     let bounds = layout.bounds();
 
-    let style = Catalog::style(theme, class, tab_status.0.unwrap_or(Status::Inactive));
+    let style = Catalog::style(
+        ctx.theme,
+        ctx.class,
+        tab_status.0.unwrap_or(Status::Inactive),
+    );
 
     let mut children = layout.children();
     let label_layout = children
@@ -828,7 +728,7 @@ fn draw_tab<Theme, Renderer>(
         .expect("Graphics: Layout should have a label layout");
     let mut label_layout_children = label_layout.children();
 
-    if bounds.intersects(viewport) {
+    if bounds.intersects(ctx.viewport) {
         renderer.fill_quad(
             renderer::Quad {
                 bounds,
@@ -846,14 +746,14 @@ fn draw_tab<Theme, Renderer>(
 
     match tab {
         TabLabel::Icon(icon) => {
-            let icon_bounds = icon_bound_rectangle(label_layout_children.next());
+            let icon_bounds = child_bounds(label_layout_children.next());
 
             renderer.fill_text(
                 iced::advanced::text::Text {
                     content: icon.to_string(),
                     bounds: Size::new(icon_bounds.width, icon_bounds.height),
-                    size: Pixels(icon_data.1),
-                    font: icon_data.0,
+                    size: Pixels(ctx.icon_data.1),
+                    font: ctx.icon_data.0,
                     align_x: text::Alignment::Center,
                     align_y: Vertical::Center,
                     line_height: LineHeight::Relative(1.3),
@@ -867,14 +767,14 @@ fn draw_tab<Theme, Renderer>(
         }
 
         TabLabel::Text(text) => {
-            let text_bounds = text_bound_rectangle(label_layout_children.next());
+            let text_bounds = child_bounds(label_layout_children.next());
 
             renderer.fill_text(
                 iced::advanced::text::Text {
                     content: text.clone(),
                     bounds: Size::new(text_bounds.width, text_bounds.height),
-                    size: Pixels(text_data.1),
-                    font: text_data.0,
+                    size: Pixels(ctx.text_data.1),
+                    font: ctx.text_data.0,
                     align_x: text::Alignment::Center,
                     align_y: Vertical::Center,
                     line_height: LineHeight::Relative(1.3),
@@ -887,50 +787,24 @@ fn draw_tab<Theme, Renderer>(
             );
         }
         TabLabel::IconText(icon, text) => {
-            let icon_bounds: Rectangle;
-            let text_bounds: Rectangle;
-
-            match position {
-                Position::Top => {
-                    let mut inner_children = label_layout_children
-                        .next()
-                        .expect("Graphics: Top Layout should have an inner layout")
-                        .children();
-                    icon_bounds = icon_bound_rectangle(inner_children.next());
-                    text_bounds = text_bound_rectangle(inner_children.next());
-                }
-                Position::Right => {
-                    let mut row_children = label_layout_children
-                        .next()
-                        .expect("Graphics: Right Layout should have a row with one child")
-                        .children();
-                    text_bounds = text_bound_rectangle(row_children.next());
-                    icon_bounds = icon_bound_rectangle(row_children.next());
-                }
-                Position::Left => {
-                    let mut row_children = label_layout_children
-                        .next()
-                        .expect("Graphics: Left Layout should have a row with one child")
-                        .children();
-                    icon_bounds = icon_bound_rectangle(row_children.next());
-                    text_bounds = text_bound_rectangle(row_children.next());
-                }
-                Position::Bottom => {
-                    let mut inner_children = label_layout_children
-                        .next()
-                        .expect("Graphics: Bottom Layout should have an inner layout")
-                        .children();
-                    text_bounds = text_bound_rectangle(inner_children.next());
-                    icon_bounds = icon_bound_rectangle(inner_children.next());
-                }
-            }
+            let mut inner_children = label_layout_children
+                .next()
+                .expect("Graphics: Layout should have an inner layout for IconText")
+                .children();
+            let first = child_bounds(inner_children.next());
+            let second = child_bounds(inner_children.next());
+            let (icon_bounds, text_bounds) = if ctx.position.is_icon_first() {
+                (first, second)
+            } else {
+                (second, first)
+            };
 
             renderer.fill_text(
                 iced::advanced::text::Text {
                     content: icon.to_string(),
                     bounds: Size::new(icon_bounds.width, icon_bounds.height),
-                    size: Pixels(icon_data.1),
-                    font: icon_data.0,
+                    size: Pixels(ctx.icon_data.1),
+                    font: ctx.icon_data.0,
                     align_x: text::Alignment::Center,
                     align_y: Vertical::Center,
                     line_height: LineHeight::Relative(1.3),
@@ -946,8 +820,8 @@ fn draw_tab<Theme, Renderer>(
                 iced::advanced::text::Text {
                     content: text.clone(),
                     bounds: Size::new(text_bounds.width, text_bounds.height),
-                    size: Pixels(text_data.1),
-                    font: text_data.0,
+                    size: Pixels(ctx.text_data.1),
+                    font: ctx.text_data.0,
                     align_x: text::Alignment::Center,
                     align_y: Vertical::Center,
                     line_height: LineHeight::Relative(1.3),
@@ -966,7 +840,7 @@ fn draw_tab<Theme, Renderer>(
         let is_mouse_over_cross = tab_status.1.unwrap_or(false);
 
         let handle = CLOSE_SVG_HANDLE.clone();
-        let svg_size = close_size + if is_mouse_over_cross { 1.0 } else { 0.0 };
+        let svg_size = ctx.close_size + if is_mouse_over_cross { 1.0 } else { 0.0 };
         let svg_bounds = Rectangle {
             x: cross_bounds.center_x() - svg_size / 2.0,
             y: cross_bounds.center_y() - svg_size / 2.0,
@@ -979,7 +853,7 @@ fn draw_tab<Theme, Renderer>(
             cross_bounds,
         );
 
-        if is_mouse_over_cross && cross_bounds.intersects(viewport) {
+        if is_mouse_over_cross && cross_bounds.intersects(ctx.viewport) {
             renderer.fill_quad(
                 renderer::Quad {
                     bounds: cross_bounds,

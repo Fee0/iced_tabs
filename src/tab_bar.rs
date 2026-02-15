@@ -3,15 +3,13 @@
 //! You have to manage the logic to show the content yourself.
 
 use iced::advanced::{
+    Clipboard, Layout, Shell, Widget,
     layout::{Limits, Node},
     mouse, renderer,
-    widget::{tree, Operation, Tree},
-    Clipboard, Layout, Shell, Widget,
+    widget::{Operation, Tree, tree},
 };
-use iced::widget::{container, scrollable, text, Scrollable};
-use iced::{
-    Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Size,
-};
+use iced::widget::{Scrollable, container, scrollable, text};
+use iced::{Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Size};
 
 use crate::status::{Status, StyleFn};
 use crate::style::{Catalog, Style};
@@ -134,6 +132,18 @@ pub enum Position {
     #[default]
     /// Icon is placed left of the text, the default.
     Left,
+}
+
+impl Position {
+    /// Whether the icon and text are stacked vertically (Top/Bottom).
+    pub fn is_vertical(self) -> bool {
+        matches!(self, Self::Top | Self::Bottom)
+    }
+
+    /// Whether the icon appears before the text in layout order (Top/Left).
+    pub fn is_icon_first(self) -> bool {
+        matches!(self, Self::Top | Self::Left)
+    }
 }
 
 /// Scroll behavior of the [`TabBar`].
@@ -473,6 +483,28 @@ where
     }
 }
 
+/// Ensures that `children` has a first entry synchronised with `element`.
+///
+/// If the child already exists it is diffed; otherwise a fresh tree is created
+/// and inserted. Returns a mutable reference to that child tree.
+///
+/// Accepts `&mut Vec<Tree>` (i.e. `&mut tree.children`) rather than `&mut Tree`
+/// so callers can split-borrow `tree.state` and `tree.children` independently.
+pub(crate) fn ensure_child_tree<'a, Message, Theme, Renderer>(
+    children: &'a mut Vec<Tree>,
+    element: &mut Element<'_, Message, Theme, Renderer>,
+) -> &'a mut Tree
+where
+    Renderer: renderer::Renderer,
+{
+    if children.is_empty() {
+        children.insert(0, Tree::new(element.as_widget()));
+    } else {
+        children[0].diff(element.as_widget_mut());
+    }
+    &mut children[0]
+}
+
 /// Widget implementation for [`TabBar`](TabBar).
 impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
     for TabBar<'_, Message, TabId, Theme, Renderer>
@@ -493,14 +525,7 @@ where
 
     fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
         let mut element = self.wrapper_element();
-        let tab_tree = if let Some(child_tree) = tree.children.get_mut(0) {
-            child_tree.diff(element.as_widget_mut());
-            child_tree
-        } else {
-            let child_tree = Tree::new(element.as_widget());
-            tree.children.insert(0, child_tree);
-            &mut tree.children[0]
-        };
+        let tab_tree = ensure_child_tree(&mut tree.children, &mut element);
 
         let limits = limits.max_height(self.max_height);
         element.as_widget_mut().layout(tab_tree, renderer, &limits)
@@ -578,14 +603,7 @@ where
         operation.container(None, layout.bounds());
 
         let mut element = self.wrapper_element();
-        let tab_tree = if let Some(child_tree) = tree.children.get_mut(0) {
-            child_tree.diff(element.as_widget_mut());
-            child_tree
-        } else {
-            let child_tree = Tree::new(element.as_widget());
-            tree.children.insert(0, child_tree);
-            &mut tree.children[0]
-        };
+        let tab_tree = ensure_child_tree(&mut tree.children, &mut element);
 
         element
             .as_widget_mut()
@@ -632,14 +650,7 @@ where
 
         {
             let mut element = self.wrapper_element();
-            let tab_tree = if let Some(child_tree) = state.children.get_mut(0) {
-                child_tree.diff(element.as_widget_mut());
-                child_tree
-            } else {
-                let child_tree = Tree::new(element.as_widget());
-                state.children.insert(0, child_tree);
-                &mut state.children[0]
-            };
+            let tab_tree = ensure_child_tree(&mut state.children, &mut element);
             element.as_widget_mut().update(
                 tab_tree, event_ref, layout, cursor, renderer, clipboard, shell, viewport,
             );
@@ -649,10 +660,10 @@ where
         }
 
         if let Some(wrapper_tree) = state.children.get_mut(0) {
-            let content_state_opt: Option<&tab::TabBarContentState> =
-                wrapper_tree.children.get_mut(0).map(|content_tree| {
-                    content_tree.state.downcast_ref::<tab::TabBarContentState>()
-                });
+            let content_state_opt: Option<&tab::TabBarContentState> = wrapper_tree
+                .children
+                .get_mut(0)
+                .map(|content_tree| content_tree.state.downcast_ref::<tab::TabBarContentState>());
 
             if let Some(content_state) = content_state_opt {
                 self.tab_statuses.clone_from(&content_state.tab_statuses);
@@ -694,4 +705,3 @@ where
         Element::new(tab_bar)
     }
 }
-

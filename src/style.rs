@@ -8,7 +8,7 @@ use iced::{Background, Color, Shadow, Theme, border::Radius};
 pub struct Style {
     /// Style of the outer bar container.
     pub bar: BarStyle,
-    /// Style of individual tabs. 
+    /// Style of individual tabs.
     pub tab: TabStyle,
 }
 
@@ -70,7 +70,7 @@ impl Default for TabStyle {
             border_radius: Radius::new(5.0),
             border_width: 1.0,
             icon_color: [0.5, 0.5, 0.5].into(),
-            icon_background: Some(Background::Color(Color::from_rgba(0.5, 0.5, 0.5, 0.3))),
+            icon_background: Some(Background::Color(Color::from_rgba(1.0, 0.0, 0.0, 0.9))),
             icon_border_radius: 4.0.into(),
             text_color: [0.9, 0.9, 0.9].into(),
             shadow: Shadow::default(),
