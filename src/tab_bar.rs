@@ -34,6 +34,8 @@ const DEFAULT_CLOSE_SIZE: f32 = 16.0;
 const DEFAULT_PADDING: Padding = Padding::new(5.0);
 /// The default spacing around the tabs.
 const DEFAULT_SPACING: Pixels = Pixels::ZERO;
+/// The default spacing between a tab's label and its close button.
+const DEFAULT_LABEL_SPACING: f32 = 4.0;
 /// The default spacing for the embedded scrollbar (when not floating).
 const DEFAULT_SCROLLBAR_SPACING: Pixels = Pixels(4.0);
 /// Default width (in logical pixels) reserved for scroll buttons in `ButtonsOnly` mode.
@@ -105,6 +107,8 @@ where
     padding: Padding,
     /// The spacing of the tabs of the [`TabBar`].
     spacing: Pixels,
+    /// The spacing between a tab's label content and its close button.
+    label_spacing: f32,
     /// The optional icon font of the [`TabBar`].
     font: Option<Font>,
     /// The optional text font of the [`TabBar`].
@@ -232,6 +236,7 @@ where
             close_size: DEFAULT_CLOSE_SIZE,
             padding: DEFAULT_PADDING,
             spacing: DEFAULT_SPACING,
+            label_spacing: DEFAULT_LABEL_SPACING,
             font: None,
             text_font: None,
             class: <Theme as Catalog>::default(),
@@ -345,6 +350,13 @@ where
         self
     }
 
+    /// Sets the spacing between a tab's label content and its close button.
+    #[must_use]
+    pub fn label_spacing(mut self, label_spacing: f32) -> Self {
+        self.label_spacing = label_spacing;
+        self
+    }
+
     /// Sets the scroll behavior of the [`TabBar`].
     ///
     /// Use [`ScrollMode::Floating`] for a floating scrollbar,
@@ -439,6 +451,7 @@ where
             self.icon_size,
             self.text_size,
             self.close_size,
+            self.label_spacing,
             self.padding,
             self.spacing,
             self.font,
@@ -537,7 +550,7 @@ where
         let style_sheet = if is_mouse_over {
             Catalog::style(theme, &self.class, Status::Hovered)
         } else {
-            Catalog::style(theme, &self.class, Status::Disabled)
+            Catalog::style(theme, &self.class, Status::Inactive)
         };
 
         if bounds.intersects(viewport) {
@@ -954,7 +967,7 @@ fn draw_scroll_button<Theme, Renderer>(
         if is_hovered {
             Status::Hovered
         } else {
-            Status::Disabled
+            Status::Inactive
         },
     );
 

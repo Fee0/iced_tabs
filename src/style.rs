@@ -126,17 +126,16 @@ pub fn primary(theme: &Theme, status: Status) -> Style {
     let mut base = Style::default();
     let palette = theme.extended_palette();
 
-    // base.tab.text_color = palette.background.base.text;
-
     match status {
-        Status::Disabled => {
-            base.tab.background = Background::Color(palette.background.strong.color);
+        Status::Inactive => {
+            base.tab.background = Background::Color(Color::TRANSPARENT);
+            base.tab.border_width = 0.0;
         }
         Status::Hovered => {
-            base.tab.background = Background::Color(palette.primary.strong.color);
+            base.tab.background = Background::Color(Color::from_rgba(0.7,0.7,0.7,0.7));
         }
         Status::Active => {
-            base.tab.background = Background::Color(palette.primary.base.color);
+            base.tab.background = Background::Color(Color::from_rgba(0.4,0.4,0.4,0.9));
         }
     }
 
@@ -152,7 +151,7 @@ pub fn dark(_theme: &Theme, status: Status) -> Style {
     base.tab.icon_color = Color::WHITE;
     base.tab.text_color = Color::WHITE;
 
-    if status == Status::Disabled {
+    if status == Status::Inactive {
         base.tab.background = Background::Color([0.13, 0.13, 0.13].into());
     }
 

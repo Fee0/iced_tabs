@@ -91,6 +91,7 @@ where
     icon_size: f32,
     text_size: f32,
     close_size: f32,
+    label_spacing: f32,
     padding: Padding,
     spacing: Pixels,
     font: Option<Font>,
@@ -136,6 +137,7 @@ where
         icon_size: f32,
         text_size: f32,
         close_size: f32,
+        label_spacing: f32,
         padding: Padding,
         spacing: Pixels,
         font: Option<Font>,
@@ -155,6 +157,7 @@ where
             icon_size,
             text_size,
             close_size,
+            label_spacing,
             padding,
             spacing,
             font,
@@ -293,6 +296,7 @@ where
                     )
                     .align_y(Alignment::Center)
                     .padding(self.padding)
+                    .spacing(self.label_spacing)
                     .width(Length::Shrink);
 
                 if self.has_close {
@@ -508,7 +512,7 @@ where
             } else if i == active_idx {
                 Status::Active
             } else {
-                Status::Disabled
+                Status::Inactive
             };
 
             let mut is_cross_hovered = None;
@@ -586,7 +590,7 @@ fn draw_tab<Theme, Renderer>(
 
     let bounds = layout.bounds();
 
-    let style = Catalog::style(theme, class, tab_status.0.unwrap_or(Status::Disabled));
+    let style = Catalog::style(theme, class, tab_status.0.unwrap_or(Status::Inactive));
 
     let mut children = layout.children();
     let label_layout = children

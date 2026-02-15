@@ -163,10 +163,12 @@ impl TabBarExample {
                     )
                     .set_active_tab(&self.active_tab)
                     .on_close(Message::TabClosed)
-                    .spacing(5.0)
-                    .padding(5.0)
-                    .text_size(32.0)
-                    .style(dark)
+                    .spacing(8.0)
+                    .padding(8.0)
+                    .text_size(20.0)
+                    .height(35.0)
+                    .label_spacing(15.0)
+                    // .style(dark)
                     .scroll_mode(self.scroll_mode);
                 tab_bar
             })

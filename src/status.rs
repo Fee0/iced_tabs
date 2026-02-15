@@ -5,12 +5,13 @@
 /// Tab bar styling currently uses `Active`, `Hovered`, and `Disabled`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
-    /// Can be pressed (e.g. the active tab).
+    /// Currently selected tab
     Active,
+    /// Currently not selected tab
+    Inactive,
     /// Can be pressed and it is being hovered.
     Hovered,
-    /// Cannot be pressed (inactive tab).
-    Disabled,
+
 }
 
 /// The style function of widget.
