@@ -26,6 +26,8 @@ const LAYOUT_SIZE_OFFSET: f32 = 1.0;
 const CLOSE_HIT_AREA_MULTIPLIER: f32 = 1.3;
 /// SVG bytes for the close (X) icon.
 const CLOSE_SVG: &[u8] = include_bytes!("../assets/close.svg");
+/// Minimum mouse movement (in pixels) before a press is considered a drag.
+const DRAG_THRESHOLD: f32 = 5.0;
 
 /// A [`TabLabel`] showing an icon and/or a text on a tab
 /// on a [`TabBar`](super::TabBar).
@@ -72,10 +74,27 @@ impl From<(char, String)> for TabLabel {
     }
 }
 
+/// Tracks the state of an in-progress tab drag operation.
+#[derive(Debug, Clone)]
+pub struct DragState {
+    /// Index of the tab being dragged.
+    pub tab_index: usize,
+    /// Mouse position when the press occurred.
+    pub press_origin: Point,
+    /// Current mouse position (updated on every move event).
+    pub current_pos: Point,
+    /// Whether the mouse has moved past the drag threshold.
+    pub is_dragging: bool,
+    /// Horizontal offset from the tab's left edge to the press point.
+    pub tab_offset_x: f32,
+}
+
 /// State stored in `TabBarContent`'s tree for persisting `tab_statuses`.
 #[derive(Debug, Clone, Default)]
 pub struct TabBarContentState {
     pub tab_statuses: Vec<(Option<Status>, Option<bool>)>,
+    /// Active drag-and-drop state, if any.
+    pub drag: Option<DragState>,
 }
 
 /// Content widget for the tab bar (handles selection/close in content-space for Scrollable).
@@ -101,6 +120,7 @@ where
     has_close: bool,
     on_select: Arc<dyn Fn(TabId) -> Message>,
     on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
+    on_reorder: Option<Arc<dyn Fn(usize, usize) -> Message>>,
     active_tab: usize,
     class: &'a <Theme as Catalog>::Class<'b>,
     _renderer: PhantomData<Renderer>,
@@ -130,6 +150,7 @@ where
     Theme: Catalog + text::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         tab_labels: Vec<TabLabel>,
         tab_statuses: Vec<(Option<Status>, Option<bool>)>,
@@ -148,6 +169,7 @@ where
         active_tab: usize,
         on_select: Arc<dyn Fn(TabId) -> Message>,
         on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
+        on_reorder: Option<Arc<dyn Fn(usize, usize) -> Message>>,
         class: &'a <Theme as Catalog>::Class<'b>,
     ) -> Self {
         Self {
@@ -167,6 +189,7 @@ where
             has_close,
             on_select,
             on_close,
+            on_reorder,
             active_tab,
             class,
             _renderer: PhantomData,
@@ -356,7 +379,7 @@ where
 
     fn draw(
         &self,
-        _state: &Tree,
+        state: &Tree,
         renderer: &mut Renderer,
         theme: &Theme,
         _style: &renderer::Style,
@@ -364,23 +387,123 @@ where
         cursor: mouse::Cursor,
         viewport: &Rectangle,
     ) {
-        for ((i, tab), tab_layout) in self.tab_labels.iter().enumerate().zip(layout.children()) {
-            let tab_status = self.tab_statuses.get(i).expect("Should have a status.");
+        let content_state = state.state.downcast_ref::<TabBarContentState>();
+        let drag = content_state.drag.as_ref();
+        let is_dragging = drag.is_some_and(|d| d.is_dragging);
 
-            draw_tab(
-                renderer,
-                tab,
-                tab_status,
-                tab_layout,
-                self.position,
-                theme,
-                self.class,
-                cursor,
-                (self.font.unwrap_or(CODICON_FONT), self.icon_size),
-                (self.text_font.unwrap_or_default(), self.text_size),
-                self.close_size,
-                viewport,
-            );
+        let tab_layouts: Vec<_> = layout.children().collect();
+
+        if !is_dragging {
+            // Normal (non-drag) drawing: each tab at its own layout position.
+            for ((i, tab), tab_layout) in self.tab_labels.iter().enumerate().zip(&tab_layouts) {
+                let tab_status = self.tab_statuses.get(i).expect("Should have a status.");
+
+                draw_tab(
+                    renderer,
+                    tab,
+                    tab_status,
+                    *tab_layout,
+                    self.position,
+                    theme,
+                    self.class,
+                    cursor,
+                    (self.font.unwrap_or(CODICON_FONT), self.icon_size),
+                    (self.text_font.unwrap_or_default(), self.text_size),
+                    self.close_size,
+                    viewport,
+                );
+            }
+        } else if let Some(drag) = drag {
+            let dragged_idx = drag.tab_index;
+            let target = compute_drop_index(&tab_layouts, drag.current_pos.x, dragged_idx);
+
+            // Build visual order: simulate removing the dragged tab and
+            // inserting it at the target position.
+            let mut visual_order: Vec<usize> = (0..tab_layouts.len())
+                .filter(|&i| i != dragged_idx)
+                .collect();
+            let insert_at = target.min(visual_order.len());
+            visual_order.insert(insert_at, dragged_idx);
+
+            // Draw each non-dragged tab at its new visual slot position.
+            for (slot, &tab_idx) in visual_order.iter().enumerate() {
+                if tab_idx == dragged_idx {
+                    continue;
+                }
+
+                let tab = &self.tab_labels[tab_idx];
+                let tab_status = self.tab_statuses.get(tab_idx).expect("Should have a status.");
+
+                let original_bounds = tab_layouts[tab_idx].bounds();
+                let slot_bounds = tab_layouts[slot].bounds();
+                let offset_x = slot_bounds.x - original_bounds.x;
+
+                if offset_x.abs() < 0.5 {
+                    draw_tab(
+                        renderer,
+                        tab,
+                        tab_status,
+                        tab_layouts[tab_idx],
+                        self.position,
+                        theme,
+                        self.class,
+                        cursor,
+                        (self.font.unwrap_or(CODICON_FONT), self.icon_size),
+                        (self.text_font.unwrap_or_default(), self.text_size),
+                        self.close_size,
+                        viewport,
+                    );
+                } else {
+                    renderer.with_translation(
+                        iced::Vector::new(offset_x, 0.0),
+                        |renderer| {
+                            draw_tab(
+                                renderer,
+                                tab,
+                                tab_status,
+                                tab_layouts[tab_idx],
+                                self.position,
+                                theme,
+                                self.class,
+                                cursor,
+                                (self.font.unwrap_or(CODICON_FONT), self.icon_size),
+                                (self.text_font.unwrap_or_default(), self.text_size),
+                                self.close_size,
+                                viewport,
+                            );
+                        },
+                    );
+                }
+            }
+
+            // Draw the dragged tab floating at the cursor position.
+            if let Some(dragged_layout) = tab_layouts.get(dragged_idx) {
+                let original_bounds = dragged_layout.bounds();
+                let offset_x = drag.current_pos.x - drag.tab_offset_x - original_bounds.x;
+                let offset_y = drag.current_pos.y - original_bounds.center_y();
+
+                renderer.with_translation(
+                    iced::Vector::new(offset_x, offset_y),
+                    |renderer| {
+                        let dragged_tab = &self.tab_labels[dragged_idx];
+                        let dragged_status = (Some(Status::Dragging), None);
+                        draw_tab(
+                            renderer,
+                            dragged_tab,
+                            &dragged_status,
+                            *dragged_layout,
+                            self.position,
+                            theme,
+                            self.class,
+                            cursor,
+                            (self.font.unwrap_or(CODICON_FONT), self.icon_size),
+                            (self.text_font.unwrap_or_default(), self.text_size),
+                            self.close_size,
+                            viewport,
+                        );
+                    },
+                );
+            }
         }
     }
 
@@ -391,6 +514,7 @@ where
     fn state(&self) -> tree::State {
         tree::State::new(TabBarContentState {
             tab_statuses: self.tab_statuses.clone(),
+            drag: None,
         })
     }
 
@@ -454,6 +578,11 @@ where
 
         let tab_layouts: Vec<_> = layout.children().collect();
 
+        let is_currently_dragging = content_state
+            .drag
+            .as_ref()
+            .is_some_and(|d| d.is_dragging);
+
         match event {
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
             | Event::Touch(touch::Event::FingerPressed { .. }) => {
@@ -475,7 +604,8 @@ where
                         let tab_layout = tab_layouts.get(new_selected).expect(
                             "TabBarContent: Layout should have a tab layout at the selected index",
                         );
-                        let message = if let Some(on_close) = self.on_close.as_ref() {
+
+                        let is_close_click = if let Some(on_close) = self.on_close.as_ref() {
                             let cross_layout = tab_layout
                                 .children()
                                 .nth(1)
@@ -484,18 +614,79 @@ where
                                 .position()
                                 .is_some_and(|pos| cross_layout.bounds().contains(pos))
                             {
-                                on_close(self.tab_indices[new_selected].clone())
+                                shell.publish(on_close(
+                                    self.tab_indices[new_selected].clone(),
+                                ));
+                                shell.capture_event();
+                                true
                             } else {
-                                (self.on_select)(self.tab_indices[new_selected].clone())
+                                false
                             }
                         } else {
-                            (self.on_select)(self.tab_indices[new_selected].clone())
+                            false
                         };
-                        shell.publish(message);
+
+                        if !is_close_click {
+                            shell.publish((self.on_select)(
+                                self.tab_indices[new_selected].clone(),
+                            ));
+                            shell.capture_event();
+
+                            if self.on_reorder.is_some() {
+                                if let Some(pos) = cursor.position() {
+                                    let tab_bounds = tab_layout.bounds();
+                                    content_state.drag = Some(DragState {
+                                        tab_index: new_selected,
+                                        press_origin: pos,
+                                        current_pos: pos,
+                                        is_dragging: false,
+                                        tab_offset_x: pos.x - tab_bounds.x,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Event::Mouse(mouse::Event::CursorMoved { .. })
+            | Event::Touch(touch::Event::FingerMoved { .. }) => {
+                if let Some(drag) = content_state.drag.as_mut() {
+                    if let Some(pos) = cursor.position() {
+                        drag.current_pos = pos;
+                        if !drag.is_dragging {
+                            let dx = pos.x - drag.press_origin.x;
+                            let dy = pos.y - drag.press_origin.y;
+                            if (dx * dx + dy * dy).sqrt() >= DRAG_THRESHOLD {
+                                drag.is_dragging = true;
+                            }
+                        }
+                        if drag.is_dragging {
+                            shell.request_redraw();
+                            shell.capture_event();
+                        }
+                    }
+                }
+            }
+
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+            | Event::Touch(touch::Event::FingerLifted { .. })
+            | Event::Touch(touch::Event::FingerLost { .. }) => {
+                if let Some(drag) = content_state.drag.take() {
+                    if drag.is_dragging {
+                        if let Some(on_reorder) = self.on_reorder.as_ref() {
+                            let target =
+                                compute_drop_index(&tab_layouts, drag.current_pos.x, drag.tab_index);
+                            if target != drag.tab_index {
+                                shell.publish(on_reorder(drag.tab_index, target));
+                            }
+                        }
+                        shell.request_redraw();
                         shell.capture_event();
                     }
                 }
             }
+
             _ => {}
         }
 
@@ -507,7 +698,14 @@ where
                 .get_mut(i)
                 .expect("Should have a status.");
 
-            let current_status = if cursor.is_over(tab_layout.bounds()) {
+            let current_status = if is_currently_dragging
+                && content_state
+                    .drag
+                    .as_ref()
+                    .is_some_and(|d| d.tab_index == i)
+            {
+                Status::Dragging
+            } else if cursor.is_over(tab_layout.bounds()) && !is_currently_dragging {
                 Status::Hovered
             } else if i == active_idx {
                 Status::Active
@@ -516,7 +714,7 @@ where
             };
 
             let mut is_cross_hovered = None;
-            if self.has_close {
+            if self.has_close && !is_currently_dragging {
                 let mut tab_children = tab_layout.children();
                 if let Some(cross_layout) = tab_children.next_back() {
                     is_cross_hovered = Some(cursor.is_over(cross_layout.bounds()));
@@ -539,22 +737,51 @@ where
     fn mouse_interaction(
         &self,
         state: &Tree,
-        layout: Layout<'_>,
-        cursor: mouse::Cursor,
-        viewport: &Rectangle,
-        renderer: &Renderer,
+        _layout: Layout<'_>,
+        _cursor: mouse::Cursor,
+        _viewport: &Rectangle,
+        _renderer: &Renderer,
     ) -> mouse::Interaction {
-        let row = self.row_element();
-        let element = Element::new(row);
-        let tab_tree = state
-            .children
-            .first()
-            .expect("TabBarContent: Should have Row tree");
+        let content_state = state.state.downcast_ref::<TabBarContentState>();
 
-        element
-            .as_widget()
-            .mouse_interaction(tab_tree, layout, cursor, viewport, renderer)
+        if content_state
+            .drag
+            .as_ref()
+            .is_some_and(|d| d.is_dragging)
+        {
+            return mouse::Interaction::Grabbing;
+        }
+
+        mouse::Interaction::default()
     }
+}
+
+/// Compute the target insertion index for a drag operation.
+///
+/// Compares the cursor's x position against each tab layout's center-x.
+/// Returns the index where the dragged tab should be placed.
+fn compute_drop_index(tab_layouts: &[Layout<'_>], cursor_x: f32, dragged_index: usize) -> usize {
+    let count = tab_layouts.len();
+    if count == 0 {
+        return 0;
+    }
+
+    let mut target = count;
+    for (i, tab_layout) in tab_layouts.iter().enumerate() {
+        let center = tab_layout.bounds().center_x();
+        if cursor_x < center {
+            target = i;
+            break;
+        }
+    }
+
+    // When dragging right, the visual slot shifts because we remove from the left.
+    // Adjust so "dropping in the same place" doesn't move.
+    if target > dragged_index {
+        target = target.saturating_sub(1);
+    }
+
+    target
 }
 
 #[allow(clippy::too_many_lines, clippy::too_many_arguments)]

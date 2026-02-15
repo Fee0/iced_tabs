@@ -25,6 +25,7 @@ fn main() -> iced::Result {
 enum Message {
     TabSelected(usize),
     TabClosed(usize),
+    TabReordered(usize, usize),
     TabLabelInputChanged(String),
     TabContentInputChanged(String),
     NewTab,
@@ -97,6 +98,22 @@ impl TabBarExample {
                 };
                 println!("active tab after: {}", self.active_tab);
             }
+            Message::TabReordered(from, to) => {
+                println!("Tab reordered: {} -> {}", from, to);
+                if from < self.tabs.len() && to < self.tabs.len() {
+                    let tab = self.tabs.remove(from);
+                    self.tabs.insert(to, tab);
+
+                    // Keep the active tab tracking the same logical tab.
+                    if self.active_tab == from {
+                        self.active_tab = to;
+                    } else if from < self.active_tab && to >= self.active_tab {
+                        self.active_tab = self.active_tab.saturating_sub(1);
+                    } else if from > self.active_tab && to <= self.active_tab {
+                        self.active_tab = (self.active_tab + 1).min(self.tabs.len() - 1);
+                    }
+                }
+            }
             Message::TabLabelInputChanged(value) => self.new_tab_label = value,
             Message::TabContentInputChanged(value) => self.new_tab_content = value,
             Message::NewTab => {
@@ -168,12 +185,12 @@ impl TabBarExample {
                     )
                     .set_active_tab(&self.active_tab)
                     .on_close(Message::TabClosed)
+                    .on_reorder(Message::TabReordered)
                     .spacing(8.0)
                     .padding(8.0)
                     .text_size(20.0)
                     .height(35.0)
                     .label_spacing(15.0)
-                    // .style(dark)
                     .scroll_mode(self.scroll_mode);
                 tab_bar
             })

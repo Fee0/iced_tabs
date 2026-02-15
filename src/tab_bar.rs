@@ -91,6 +91,9 @@ where
     on_select: Arc<dyn Fn(TabId) -> Message>,
     /// The function that produces the message when the close icon was pressed.
     on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
+    /// The function that produces the message when a tab is dragged to a new position.
+    /// Takes `(from_index, to_index)`.
+    on_reorder: Option<Arc<dyn Fn(usize, usize) -> Message>>,
     /// The width of the [`TabBar`].
     width: Length,
     /// The height of the [`TabBar`].
@@ -230,6 +233,7 @@ where
             tab_labels: tab_labels.into_iter().map(|(_, label)| label).collect(),
             on_select: Arc::new(on_select),
             on_close: None,
+            on_reorder: None,
             width: Length::Fill,
             height: Length::Shrink,
             max_height: u32::MAX as f32,
@@ -320,6 +324,22 @@ where
         F: 'static + Fn(TabId) -> Message,
     {
         self.on_close = Some(Arc::new(on_close));
+        self
+    }
+
+    /// Sets the message that will be produced when a tab is dragged to a new position.
+    ///
+    /// The callback receives `(from_index, to_index)` — the original position of
+    /// the dragged tab and the position it should be moved to. The consumer is
+    /// responsible for reordering their data accordingly.
+    ///
+    /// Setting this enables drag-and-drop reordering of tabs.
+    #[must_use]
+    pub fn on_reorder<F>(mut self, on_reorder: F) -> Self
+    where
+        F: 'static + Fn(usize, usize) -> Message,
+    {
+        self.on_reorder = Some(Arc::new(on_reorder));
         self
     }
 
@@ -465,6 +485,7 @@ where
                 .min(self.tab_indices.len().saturating_sub(1)),
             Arc::clone(&self.on_select),
             self.on_close.as_ref().map(Arc::clone),
+            self.on_reorder.as_ref().map(Arc::clone),
             &self.class,
         )
     }

@@ -60,6 +60,8 @@ pub struct TabStyle {
     pub text_color: Color,
     /// Shadow applied to each tab.
     pub shadow: Shadow,
+    /// Color of the drop indicator line shown during drag-and-drop reordering.
+    pub drop_indicator_color: Color,
 }
 
 impl Default for TabStyle {
@@ -73,7 +75,8 @@ impl Default for TabStyle {
             icon_background: Some(Background::Color(Color::from_rgb(1.0, 0.0, 0.0))),
             icon_border_radius: 4.0.into(),
             text_color: [0.9, 0.9, 0.9].into(),
-            shadow: Shadow::default()
+            shadow: Shadow::default(),
+            drop_indicator_color: [0.9, 0.9, 0.9].into(),
         }
     }
 }
@@ -132,10 +135,14 @@ pub fn primary(theme: &Theme, status: Status) -> Style {
             base.tab.border_width = 0.0;
         }
         Status::Hovered => {
-            base.tab.background = Background::Color(Color::from_rgba(0.7,0.7,0.7,0.7));
+            base.tab.background = Background::Color(Color::from_rgba(0.7, 0.7, 0.7, 0.7));
         }
         Status::Active => {
-            base.tab.background = Background::Color(Color::from_rgba(0.4,0.4,0.4,0.9));
+            base.tab.background = Background::Color(Color::from_rgba(0.4, 0.4, 0.4, 0.9));
+        }
+        Status::Dragging => {
+            base.tab.background = Background::Color(Color::from_rgba(0.4, 0.4, 0.4, 0.5));
+            base.tab.border_width = 1.0;
         }
     }
 
@@ -151,8 +158,14 @@ pub fn dark(_theme: &Theme, status: Status) -> Style {
     base.tab.icon_color = Color::WHITE;
     base.tab.text_color = Color::WHITE;
 
-    if status == Status::Inactive {
-        base.tab.background = Background::Color([0.13, 0.13, 0.13].into());
+    match status {
+        Status::Inactive => {
+            base.tab.background = Background::Color([0.13, 0.13, 0.13].into());
+        }
+        Status::Dragging => {
+            base.tab.background = Background::Color(Color::from_rgba(0.1, 0.1, 0.1, 0.5));
+        }
+        _ => {}
     }
 
     base
