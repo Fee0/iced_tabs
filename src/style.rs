@@ -112,11 +112,11 @@ pub fn primary(_theme: &Theme, status: Status) -> Style {
             base.tab.background = Background::Color(Color::TRANSPARENT);
             base.tab.border_width = 0.0;
         }
-        Status::Hovered  => {
+        Status::Hovered => {
             base.tab.background = Background::Color(Color::from_rgba(0.7, 0.7, 0.7, 0.2));
             base.tab.border_width = 0.0;
         }
-        Status::Active | Status::Dragging=> {
+        Status::Active | Status::Dragging => {
             base.tab.background = Background::Color(Color::from_rgba(0.4, 0.4, 0.4, 0.9));
         }
     }
