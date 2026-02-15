@@ -37,7 +37,6 @@ enum Message {
 enum ScrollModeChoice {
     Floating,
     Embedded,
-    ButtonsOnly,
     Blank,
 }
 
@@ -46,7 +45,6 @@ impl fmt::Display for ScrollModeChoice {
         match self {
             ScrollModeChoice::Floating => write!(f, "Floating"),
             ScrollModeChoice::Embedded => write!(f, "Embedded"),
-            ScrollModeChoice::ButtonsOnly => write!(f, "Buttons only"),
             ScrollModeChoice::Blank => write!(f, "Blank"),
         }
     }
@@ -57,7 +55,6 @@ impl From<ScrollModeChoice> for ScrollMode {
         match c {
             ScrollModeChoice::Floating => ScrollMode::Floating,
             ScrollModeChoice::Embedded => ScrollMode::Embedded(4.0.into()),
-            ScrollModeChoice::ButtonsOnly => ScrollMode::ButtonsOnly,
             ScrollModeChoice::Blank => ScrollMode::Blank,
         }
     }
@@ -67,7 +64,6 @@ fn scroll_mode_to_choice(mode: &ScrollMode) -> ScrollModeChoice {
     match mode {
         ScrollMode::Floating => ScrollModeChoice::Floating,
         ScrollMode::Embedded(_) => ScrollModeChoice::Embedded,
-        ScrollMode::ButtonsOnly => ScrollModeChoice::ButtonsOnly,
         ScrollMode::Blank => ScrollModeChoice::Blank,
     }
 }
@@ -157,7 +153,6 @@ impl TabBarExample {
                             [
                                 ScrollModeChoice::Floating,
                                 ScrollModeChoice::Embedded,
-                                ScrollModeChoice::ButtonsOnly,
                                 ScrollModeChoice::Blank,
                             ],
                             Some(scroll_mode_to_choice(&self.scroll_mode)),

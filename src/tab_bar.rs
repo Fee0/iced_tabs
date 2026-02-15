@@ -7,12 +7,12 @@
 use iced::advanced::{
     layout::{Limits, Node},
     mouse, renderer,
-    widget::{operation::Scrollable as ScrollableOp, tree, Operation, Tree},
+    widget::{tree, Operation, Tree},
     Clipboard, Layout, Shell, Widget,
 };
-use iced::widget::{container, scrollable, text, Row, Scrollable, Space};
+use iced::widget::{container, scrollable, text, Scrollable};
 use iced::{
-    Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Shadow, Size, Vector,
+    Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Size,
 };
 
 use crate::status::{Status, StyleFn};
@@ -38,8 +38,6 @@ const DEFAULT_SPACING: Pixels = Pixels::ZERO;
 const DEFAULT_LABEL_SPACING: f32 = 4.0;
 /// The default spacing for the embedded scrollbar (when not floating).
 const DEFAULT_SCROLLBAR_SPACING: Pixels = Pixels(4.0);
-/// Default width (in logical pixels) reserved for scroll buttons in `ButtonsOnly` mode.
-const BUTTONS_AREA_WIDTH: f32 = 48.0;
 /// Factor to convert vertical scroll lines to horizontal pixels (matches iced's scroll speed).
 const VERTICAL_TO_HORIZONTAL_SCROLL_FACTOR: f32 = 60.0;
 
@@ -122,8 +120,6 @@ where
     position: Position,
     /// Scroll behavior and scrollbar visibility for the tab bar.
     scroll_mode: ScrollMode,
-    /// Where the scroll buttons are placed when [`scroll_mode`](Self::scroll_mode) is [`ButtonsOnly`](ScrollMode::ButtonsOnly).
-    scroll_buttons_position: ScrollButtonsPosition,
     #[allow(clippy::missing_docs_in_private_items)]
     _renderer: PhantomData<Renderer>,
 }
@@ -152,21 +148,8 @@ pub enum ScrollMode {
     Floating,
     /// Scrollbar is embedded in its own row below the tabs with the given spacing.
     Embedded(Pixels),
-    /// Scrollbar is hidden; scrolling is done via mouse wheel and `<` / `>` buttons.
-    /// Button position (left or right) is set via [`scroll_buttons_position`](TabBar::scroll_buttons_position) (default left).
-    ButtonsOnly,
     /// Scrollbar is hidden and no buttons are shown; scrolling is only possible via mouse wheel.
     Blank,
-}
-
-/// Where the `<` / `>` scroll buttons are placed when using [`ScrollMode::ButtonsOnly`].
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub enum ScrollButtonsPosition {
-    /// Buttons on the left side of the tab bar (default).
-    #[default]
-    Left,
-    /// Buttons on the right side of the tab bar.
-    Right,
 }
 
 impl Default for ScrollMode {
@@ -248,7 +231,6 @@ where
             class: <Theme as Catalog>::default(),
             position: Position::default(),
             scroll_mode: ScrollMode::default(),
-            scroll_buttons_position: ScrollButtonsPosition::default(),
             _renderer: PhantomData,
         }
     }
@@ -383,19 +365,10 @@ where
     ///
     /// Use [`ScrollMode::Floating`] for a floating scrollbar,
     /// [`ScrollMode::Embedded`] for an always-visible embedded scrollbar,
-    /// or [`ScrollMode::ButtonsOnly`] to hide the scrollbar and use `<` / `>`
-    /// buttons (position set by [`scroll_buttons_position`](Self::scroll_buttons_position)).
+    /// or [`ScrollMode::Blank`] to hide the scrollbar entirely (mouse wheel only).
     #[must_use]
     pub fn scroll_mode(mut self, mode: ScrollMode) -> Self {
         self.scroll_mode = mode;
-        self
-    }
-
-    /// Sets where the `<` / `>` scroll buttons are placed. Only applies when
-    /// [`scroll_mode`](Self::scroll_mode) is [`ScrollMode::ButtonsOnly`]. Default is [`Left`](ScrollButtonsPosition::Left).
-    #[must_use]
-    pub fn scroll_buttons_position(mut self, position: ScrollButtonsPosition) -> Self {
-        self.scroll_buttons_position = position;
         self
     }
 
@@ -460,7 +433,7 @@ where
         let scrollbar = match self.scroll_mode {
             ScrollMode::Floating => scrollable::Scrollbar::default(),
             ScrollMode::Embedded(spacing) => scrollable::Scrollbar::default().spacing(spacing),
-            ScrollMode::ButtonsOnly | ScrollMode::Blank => scrollable::Scrollbar::hidden(),
+            ScrollMode::Blank => scrollable::Scrollbar::hidden(),
         };
         scrollable::Direction::Horizontal(scrollbar)
     }
@@ -490,22 +463,6 @@ where
         )
     }
 
-    /// Returns the Scrollable wrapping TabBarContent (used to deliver scroll events in ButtonsOnly mode).
-    fn scrollable_element(&self) -> Element<'_, Message, Theme, Renderer> {
-        let scrollable_height = match self.scroll_mode {
-            ScrollMode::Embedded(_) => Length::Shrink,
-            _ => self.height,
-        };
-        Element::new(
-            Scrollable::with_direction(
-                Element::new(self.tab_content()),
-                self.scrollbar_direction(),
-            )
-            .width(self.width)
-            .height(scrollable_height),
-        )
-    }
-
     /// Returns the inner element (Scrollable wrapping TabBarContent).
     pub(crate) fn wrapper_element(&self) -> Element<'_, Message, Theme, Renderer> {
         let content = self.tab_content();
@@ -518,22 +475,7 @@ where
                 .width(self.width)
                 .height(scrollable_height);
 
-        if matches!(self.scroll_mode, ScrollMode::ButtonsOnly) {
-            let buttons_space = Space::new()
-                .width(Length::Fixed(BUTTONS_AREA_WIDTH))
-                .height(Length::Fill);
-            let row = match self.scroll_buttons_position {
-                ScrollButtonsPosition::Left => Row::new()
-                    .push(buttons_space)
-                    .push(scrollable.width(Length::Fill)),
-                ScrollButtonsPosition::Right => Row::new()
-                    .push(scrollable.width(Length::Fill))
-                    .push(buttons_space),
-            };
-            Element::new(row.width(self.width).height(self.height))
-        } else {
-            Element::new(scrollable)
-        }
+        Element::new(scrollable)
     }
 }
 
@@ -617,51 +559,6 @@ where
             cursor,
             viewport,
         );
-
-        // In buttons-only mode, draw the `<` / `>` scroll buttons in the reserved area.
-        if matches!(self.scroll_mode, ScrollMode::ButtonsOnly) {
-            let (buttons_layout, _) =
-                buttons_and_scrollable_layouts(layout, self.scroll_buttons_position);
-            if let Some(buttons_layout) = buttons_layout {
-                let buttons_bounds = buttons_layout.bounds();
-                let (left_bounds, right_bounds) = split_buttons_area(buttons_bounds);
-
-                // Slightly expand right hover area so the boundary pixel counts as ">" (some
-                // backends use exclusive right edge for the left rect).
-                let right_hover_bounds = Rectangle {
-                    x: right_bounds.x - 1.0,
-                    width: right_bounds.width + 1.0,
-                    ..right_bounds
-                };
-                let is_left_hovered =
-                    cursor.is_over(left_bounds) && !cursor.is_over(right_hover_bounds);
-                let is_right_hovered = cursor.is_over(right_hover_bounds);
-
-                // Use the same font as tab labels for the button glyphs so they are always visible
-                let button_font = self.text_font.unwrap_or_default();
-
-                draw_scroll_button(
-                    renderer,
-                    theme,
-                    &self.class,
-                    button_font,
-                    '<',
-                    left_bounds,
-                    is_left_hovered,
-                    viewport,
-                );
-                draw_scroll_button(
-                    renderer,
-                    theme,
-                    &self.class,
-                    button_font,
-                    '>',
-                    right_bounds,
-                    is_right_hovered,
-                    viewport,
-                );
-            }
-        }
     }
 
     fn tag(&self) -> tree::Tag {
@@ -733,112 +630,13 @@ where
                     None
                 }
             }
-            // In buttons-only mode, treat clicks on the `<` / `>` buttons as horizontal scroll events.
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                if matches!(self.scroll_mode, ScrollMode::ButtonsOnly) =>
-            {
-                if let Some(cursor_pos) = cursor.position() {
-                    let (buttons_layout, _) =
-                        buttons_and_scrollable_layouts(layout, self.scroll_buttons_position);
-                    if let Some(buttons_layout) = buttons_layout {
-                        let buttons_bounds = buttons_layout.bounds();
-                        let (left_bounds, right_bounds) = split_buttons_area(buttons_bounds);
-                        // Use same right_hover_bounds as in draw so hover and click areas match.
-                        let right_hover_bounds = Rectangle {
-                            x: right_bounds.x - 1.0,
-                            width: right_bounds.width + 1.0,
-                            ..right_bounds
-                        };
-
-                        const BUTTON_SCROLL_PIXELS: f32 = 120.0;
-
-                        let delta_x = if left_bounds.contains(cursor_pos)
-                            && !right_hover_bounds.contains(cursor_pos)
-                        {
-                            -BUTTON_SCROLL_PIXELS
-                        } else if right_hover_bounds.contains(cursor_pos) {
-                            BUTTON_SCROLL_PIXELS
-                        } else {
-                            0.0
-                        };
-
-                        if delta_x != 0.0 {
-                            let modified = mouse::ScrollDelta::Pixels { x: delta_x, y: 0.0 };
-                            Some(Event::Mouse(mouse::Event::WheelScrolled {
-                                delta: modified,
-                            }))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
             _ => None,
         };
 
-        // In buttons-only mode, request redraw when cursor moves so scroll button hover updates
-        // (appears on enter, clears on leave).
-        if matches!(self.scroll_mode, ScrollMode::ButtonsOnly) {
-            if let Event::Mouse(mouse::Event::CursorMoved { .. }) = event {
-                shell.request_redraw();
-            }
-        }
-
         let event_ref = transformed_event.as_ref().unwrap_or(event);
         let did_transform = transformed_event.is_some();
-        let transformed_from_click = did_transform
-            && matches!(
-                event,
-                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-            );
 
-        if transformed_from_click {
-            // Scroll programmatically via Operation so the Scrollable actually scrolls (its update()
-            // ignores WheelScrolled when the cursor is outside its bounds, i.e. over the button).
-            let delta_x = match event_ref {
-                Event::Mouse(mouse::Event::WheelScrolled {
-                    delta: mouse::ScrollDelta::Pixels { x, .. },
-                }) => *x,
-                _ => 0.0,
-            };
-            let (_, scrollable_layout) =
-                buttons_and_scrollable_layouts(layout, self.scroll_buttons_position);
-            let scrollable_child_index = match self.scroll_buttons_position {
-                ScrollButtonsPosition::Left => 1,
-                ScrollButtonsPosition::Right => 0,
-            };
-            let scroll_tree = state
-                .children
-                .get_mut(0)
-                .and_then(|row| row.children.get_mut(scrollable_child_index));
-            if let (Some(scroll_layout), Some(scroll_tree)) = (scrollable_layout, scroll_tree) {
-                let mut scrollable = self.scrollable_element();
-                scroll_tree.diff(scrollable.as_widget_mut());
-                let mut op = ScrollByOperation { delta_x };
-                scrollable
-                    .as_widget_mut()
-                    .operate(scroll_tree, scroll_layout, renderer, &mut op);
-                shell.request_redraw();
-            }
-            // Then update the Row with the original click so the event is consumed; we capture below.
-            let mut element = self.wrapper_element();
-            let tab_tree = if let Some(child_tree) = state.children.get_mut(0) {
-                child_tree.diff(element.as_widget_mut());
-                child_tree
-            } else {
-                let child_tree = Tree::new(element.as_widget());
-                state.children.insert(0, child_tree);
-                &mut state.children[0]
-            };
-            element.as_widget_mut().update(
-                tab_tree, event, layout, cursor, renderer, clipboard, shell, viewport,
-            );
-            shell.capture_event();
-        } else {
+        {
             let mut element = self.wrapper_element();
             let tab_tree = if let Some(child_tree) = state.children.get_mut(0) {
                 child_tree.diff(element.as_widget_mut());
@@ -857,22 +655,10 @@ where
         }
 
         if let Some(wrapper_tree) = state.children.get_mut(0) {
-            let scrollable_child_index = match self.scroll_buttons_position {
-                ScrollButtonsPosition::Left => 1,
-                ScrollButtonsPosition::Right => 0,
-            };
-            let content_state_opt: Option<&tab::TabBarContentState> = match self.scroll_mode {
-                ScrollMode::ButtonsOnly => wrapper_tree
-                    .children
-                    .get_mut(scrollable_child_index)
-                    .and_then(|scroll_tree| scroll_tree.children.get_mut(0))
-                    .map(|content_tree| {
-                        content_tree.state.downcast_ref::<tab::TabBarContentState>()
-                    }),
-                _ => wrapper_tree.children.get_mut(0).map(|content_tree| {
+            let content_state_opt: Option<&tab::TabBarContentState> =
+                wrapper_tree.children.get_mut(0).map(|content_tree| {
                     content_tree.state.downcast_ref::<tab::TabBarContentState>()
-                }),
-            };
+                });
 
             if let Some(content_state) = content_state_opt {
                 self.tab_statuses.clone_from(&content_state.tab_statuses);
@@ -915,131 +701,3 @@ where
     }
 }
 
-/// Operation that scrolls the first Scrollable by a horizontal delta (used for button clicks).
-struct ScrollByOperation {
-    delta_x: f32,
-}
-
-impl Operation<()> for ScrollByOperation {
-    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<()>)) {
-        operate(self);
-    }
-
-    fn scrollable(
-        &mut self,
-        _id: Option<&iced::widget::Id>,
-        bounds: Rectangle,
-        content_bounds: Rectangle,
-        _translation: Vector,
-        state: &mut dyn ScrollableOp,
-    ) {
-        state.scroll_by(
-            scrollable::AbsoluteOffset {
-                x: self.delta_x,
-                y: 0.0,
-            },
-            bounds,
-            content_bounds,
-        );
-    }
-}
-
-/// Returns (buttons_layout, scrollable_layout) for the Row in ButtonsOnly mode.
-/// Row order depends on scroll_buttons_position: Left => [buttons, scrollable], Right => [scrollable, buttons].
-fn buttons_and_scrollable_layouts(
-    layout: Layout<'_>,
-    position: ScrollButtonsPosition,
-) -> (Option<Layout<'_>>, Option<Layout<'_>>) {
-    let mut children = layout.children();
-    let first = children.next();
-    let second = children.next();
-    match position {
-        ScrollButtonsPosition::Left => (first, second),
-        ScrollButtonsPosition::Right => (second, first),
-    }
-}
-
-/// Split the reserved buttons area into two equal rectangles for `<` and `>` buttons.
-fn split_buttons_area(bounds: Rectangle) -> (Rectangle, Rectangle) {
-    let half_width = bounds.width / 2.0;
-
-    let left = Rectangle {
-        x: bounds.x,
-        y: bounds.y,
-        width: half_width,
-        height: bounds.height,
-    };
-
-    let right = Rectangle {
-        x: bounds.x + half_width,
-        y: bounds.y,
-        width: half_width,
-        height: bounds.height,
-    };
-
-    (left, right)
-}
-
-#[allow(clippy::too_many_arguments)]
-fn draw_scroll_button<Theme, Renderer>(
-    renderer: &mut Renderer,
-    theme: &Theme,
-    class: &<Theme as Catalog>::Class<'_>,
-    font: Font,
-    label: char,
-    bounds: Rectangle,
-    is_hovered: bool,
-    _viewport: &Rectangle,
-) where
-    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
-    Theme: Catalog + text::Catalog,
-{
-    use iced::advanced::widget::text::{LineHeight, Wrapping};
-
-    let style = Catalog::style(
-        theme,
-        class,
-        if is_hovered {
-            Status::Hovered
-        } else {
-            Status::Inactive
-        },
-    );
-
-    // Optional background on hover (when set by the theme; None = flat arrows on the bar).
-    if is_hovered {
-        if let Some(background) = style.bar.scroll_button_hover_background {
-            renderer.fill_quad(
-                renderer::Quad {
-                    bounds,
-                    border: Border {
-                        radius: style.tab.icon_border_radius,
-                        width: 0.0,
-                        color: Color::TRANSPARENT,
-                    },
-                    shadow: Shadow::default(),
-                    ..renderer::Quad::default()
-                },
-                background,
-            );
-        }
-    }
-
-    // Draw the `<` / `>` glyph centered in the bounds.
-    renderer.fill_text(
-        iced::advanced::text::Text {
-            content: label.to_string(),
-            bounds: Size::new(bounds.width, bounds.height),
-            size: Pixels(16.0),
-            font,
-            align_x: text::Alignment::Center,
-            align_y: iced::alignment::Vertical::Center,
-            line_height: LineHeight::Relative(1.3),
-            shaping: text::Shaping::Advanced,
-            wrapping: Wrapping::default(),
-        },
-        iced::Point::new(bounds.center_x(), bounds.center_y()),
-        style.tab.text_color,
-        bounds,
-    );
-}

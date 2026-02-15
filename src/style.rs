@@ -6,7 +6,7 @@
 
 use std::str::FromStr;
 use crate::status::{Status, StyleFn};
-use iced::{border::Radius, Background, Color, Shadow, Theme, Vector};
+use iced::{border::Radius, Background, Color, Shadow, Theme};
 
 /// The appearance of the outer tab bar container.
 #[derive(Clone, Copy, Debug)]
@@ -21,9 +21,6 @@ pub struct BarStyle {
     pub border_radius: Radius,
     /// Shadow applied to the outer bar.
     pub shadow: Shadow,
-    /// Optional background for the scroll buttons (`<` / `>`) on hover. When `None`, scroll
-    /// buttons have no visible background and blend into the tab bar (default).
-    pub scroll_button_hover_background: Option<Background>,
 }
 
 impl Default for BarStyle {
@@ -34,7 +31,6 @@ impl Default for BarStyle {
             border_width: 0.0,
             border_radius: Radius::default(),
             shadow: Shadow::default(),
-            scroll_button_hover_background: Some(Background::Color(Color::from_rgb(1.0, 0.0, 0.0))),
         }
     }
 }
@@ -134,15 +130,11 @@ pub fn primary(theme: &Theme, status: Status) -> Style {
             base.tab.background = Background::Color(Color::TRANSPARENT);
             base.tab.border_width = 0.0;
         }
-        Status::Hovered => {
+        Status::Hovered | Status::Dragging=> {
             base.tab.background = Background::Color(Color::from_rgba(0.7, 0.7, 0.7, 0.7));
         }
         Status::Active => {
             base.tab.background = Background::Color(Color::from_rgba(0.4, 0.4, 0.4, 0.9));
-        }
-        Status::Dragging => {
-            base.tab.background = Background::Color(Color::from_rgba(0.4, 0.4, 0.4, 0.5));
-            base.tab.border_width = 1.0;
         }
     }
 
