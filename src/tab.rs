@@ -9,12 +9,13 @@ use iced::advanced::{
     widget::{tree, Operation, Tree},
     Clipboard, Layout, Shell, Widget,
 };
-use iced::widget::{container, text, Column, Container, Row, Text};
+use iced::widget::{container, text, Column, Container, Row, Space, Text};
 use iced::{
     alignment::{Horizontal, Vertical},
     mouse, touch, Alignment, Element, Event, Font, Length, Padding, Pixels, Point, Rectangle, Size,
 };
-use iced_fonts::{codicon::advanced_text, CODICON_FONT};
+use iced::advanced::svg;
+use iced_fonts::CODICON_FONT;
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -23,6 +24,8 @@ use std::sync::Arc;
 const LAYOUT_SIZE_OFFSET: f32 = 1.0;
 /// Multiplier for close button hit area (larger than icon for easier clicking).
 const CLOSE_HIT_AREA_MULTIPLIER: f32 = 1.3;
+/// SVG bytes for the close (X) icon.
+const CLOSE_SVG: &[u8] = include_bytes!("../assets/close.svg");
 
 /// A [`TabLabel`] showing an icon and/or a text on a tab
 /// on a [`TabBar`](super::TabBar).
@@ -293,7 +296,6 @@ where
                     .width(Length::Shrink);
 
                 if self.has_close {
-                    let (close_content, close_font, close_shaping) = advanced_text::close();
                     label_row = label_row.push(
                         Row::new()
                             .width(Length::Fixed(
@@ -304,13 +306,9 @@ where
                             ))
                             .align_y(Alignment::Center)
                             .push(
-                                Text::<Theme, Renderer>::new(close_content.to_string())
-                                    .size(self.close_size + LAYOUT_SIZE_OFFSET)
-                                    .font(close_font)
-                                    .align_x(Horizontal::Center)
-                                    .align_y(Vertical::Center)
-                                    .shaping(close_shaping)
-                                    .width(Length::Shrink),
+                                Space::new()
+                                    .width(self.close_size + LAYOUT_SIZE_OFFSET)
+                                    .height(self.close_size + LAYOUT_SIZE_OFFSET),
                             ),
                     );
                 }
@@ -327,7 +325,7 @@ where
 impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
     for Tab<'_, '_, Message, TabId, Theme, Renderer>
 where
-    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font> + svg::Renderer,
     Theme: Catalog + text::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
@@ -570,7 +568,7 @@ fn draw_tab<Theme, Renderer>(
     close_size: f32,
     viewport: &Rectangle,
 ) where
-    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font> + svg::Renderer,
     Theme: Catalog + text::Catalog,
 {
     use iced::advanced::widget::text::{LineHeight, Wrapping};
@@ -733,22 +731,17 @@ fn draw_tab<Theme, Renderer>(
         let cross_bounds = cross_layout.bounds();
         let is_mouse_over_cross = tab_status.1.unwrap_or(false);
 
-        let (content, font, shaping) = advanced_text::close();
-
-        renderer.fill_text(
-            iced::advanced::text::Text {
-                content,
-                bounds: Size::new(cross_bounds.width, cross_bounds.height),
-                size: Pixels(close_size + if is_mouse_over_cross { 1.0 } else { 0.0 }),
-                font,
-                align_x: text::Alignment::Center,
-                align_y: Vertical::Center,
-                line_height: LineHeight::Relative(1.3),
-                shaping,
-                wrapping: Wrapping::default(),
-            },
-            Point::new(cross_bounds.center_x(), cross_bounds.center_y()),
-            style.tab.text_color,
+        let handle = svg::Handle::from_memory(CLOSE_SVG);
+        let svg_size = close_size + if is_mouse_over_cross { 1.0 } else { 0.0 };
+        let svg_bounds = Rectangle {
+            x: cross_bounds.center_x() - svg_size / 2.0,
+            y: cross_bounds.center_y() - svg_size / 2.0,
+            width: svg_size,
+            height: svg_size,
+        };
+        renderer.draw_svg(
+            svg::Svg::new(handle).color(style.tab.text_color),
+            svg_bounds,
             cross_bounds,
         );
 

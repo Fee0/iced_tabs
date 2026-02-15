@@ -186,7 +186,9 @@ where
 
 impl<'a, Message, TabId, Theme, Renderer> TabBar<'a, Message, TabId, Theme, Renderer>
 where
-    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Renderer: renderer::Renderer
+        + iced::advanced::text::Renderer<Font = Font>
+        + iced::advanced::svg::Renderer,
     Theme: Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
@@ -495,7 +497,9 @@ where
 impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
     for TabBar<'_, Message, TabId, Theme, Renderer>
 where
-    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Renderer: renderer::Renderer
+        + iced::advanced::text::Renderer<Font = Font>
+        + iced::advanced::svg::Renderer,
     Theme: Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
     TabId: Eq + Clone,
 {
@@ -850,7 +854,10 @@ where
 impl<'a, Message, TabId, Theme, Renderer> From<TabBar<'a, Message, TabId, Theme, Renderer>>
     for Element<'a, Message, Theme, Renderer>
 where
-    Renderer: 'a + renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Renderer: 'a
+        + renderer::Renderer
+        + iced::advanced::text::Renderer<Font = Font>
+        + iced::advanced::svg::Renderer,
     Theme: 'a + Catalog + text::Catalog + scrollable::Catalog + container::Catalog,
     Message: 'a,
     TabId: 'a + Eq + Clone,
