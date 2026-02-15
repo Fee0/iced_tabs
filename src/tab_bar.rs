@@ -469,23 +469,31 @@ where
 
     /// Returns the Scrollable wrapping TabBarContent (used to deliver scroll events in ButtonsOnly mode).
     fn scrollable_element(&self) -> Element<'_, Message, Theme, Renderer> {
+        let scrollable_height = match self.scroll_mode {
+            ScrollMode::Embedded(_) => Length::Shrink,
+            _ => self.height,
+        };
         Element::new(
             Scrollable::with_direction(
                 Element::new(self.tab_content()),
                 self.scrollbar_direction(),
             )
             .width(self.width)
-            .height(self.height),
+            .height(scrollable_height),
         )
     }
 
     /// Returns the inner element (Scrollable wrapping TabBarContent).
     pub(crate) fn wrapper_element(&self) -> Element<'_, Message, Theme, Renderer> {
         let content = self.tab_content();
+        let scrollable_height = match self.scroll_mode {
+            ScrollMode::Embedded(_) => Length::Shrink,
+            _ => self.height,
+        };
         let scrollable =
             Scrollable::with_direction(Element::new(content), self.scrollbar_direction())
                 .width(self.width)
-                .height(self.height);
+                .height(scrollable_height);
 
         if matches!(self.scroll_mode, ScrollMode::ButtonsOnly) {
             let buttons_space = Space::new()
@@ -517,7 +525,11 @@ where
     TabId: Eq + Clone,
 {
     fn size(&self) -> Size<Length> {
-        Size::new(self.width, self.height)
+        let height = match self.scroll_mode {
+            ScrollMode::Embedded(_) => Length::Shrink,
+            _ => self.height,
+        };
+        Size::new(self.width, height)
     }
 
     fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
