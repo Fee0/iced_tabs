@@ -953,7 +953,7 @@ fn draw_scroll_button<Theme, Renderer>(
 
     // Optional background on hover (when set by the theme; None = flat arrows on the bar).
     if is_hovered {
-        if let Some(background) = style.tab.scroll_button_hover_background {
+        if let Some(background) = style.bar.scroll_button_hover_background {
             renderer.fill_quad(
                 renderer::Quad {
                     bounds,

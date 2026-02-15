@@ -605,13 +605,13 @@ fn draw_tab<Theme, Renderer>(
                 bounds,
                 border: Border {
                     radius: style.tab.border_radius,
-                    width: style.tab.label_border_width,
-                    color: style.tab.label_border_color,
+                    width: style.tab.border_width,
+                    color: style.tab.border_color,
                 },
                 shadow: style.tab.shadow,
                 ..renderer::Quad::default()
             },
-            style.tab.label_background,
+            style.tab.background,
         );
     }
 
