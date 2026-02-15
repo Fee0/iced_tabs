@@ -4,9 +4,18 @@
 //!
 //! *This API requires the following crate features to be activated: `tab_bar`*
 
-use std::str::FromStr;
 use crate::status::{Status, StyleFn};
-use iced::{border::Radius, Background, Color, Shadow, Theme};
+use iced::{Background, Color, Shadow, Theme, border::Radius};
+use std::str::FromStr;
+
+/// Combined style used by the [`TabBar`](crate::TabBar).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Style {
+    /// Style of the outer bar container.
+    pub bar: BarStyle,
+    /// Style of individual tabs. 
+    pub tab: TabStyle,
+}
 
 /// The appearance of the outer tab bar container.
 #[derive(Clone, Copy, Debug)]
@@ -77,16 +86,6 @@ impl Default for TabStyle {
     }
 }
 
-/// Combined style used by the [`TabBar`](crate::TabBar).
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Style {
-    /// Style of the outer bar container.
-    pub bar: BarStyle,
-
-    /// Style of individual tabs.
-    pub tab: TabStyle,
-}
-
 /// The Catalog of a [`TabBar`](crate::TabBar).
 pub trait Catalog {
     ///Style for the trait to use.
@@ -121,7 +120,7 @@ pub fn primary(_theme: &Theme, status: Status) -> Style {
             base.tab.background = Background::Color(Color::TRANSPARENT);
             base.tab.border_width = 0.0;
         }
-        Status::Hovered | Status::Dragging=> {
+        Status::Hovered | Status::Dragging => {
             base.tab.background = Background::Color(Color::from_rgba(0.7, 0.7, 0.7, 0.2));
             base.tab.border_width = 0.0;
         }
@@ -132,4 +131,3 @@ pub fn primary(_theme: &Theme, status: Status) -> Style {
 
     base
 }
-
