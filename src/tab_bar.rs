@@ -116,7 +116,6 @@ where
     position: Position,
     /// Scroll behavior and scrollbar visibility for the tab bar.
     scroll_mode: ScrollMode,
-    #[allow(clippy::missing_docs_in_private_items)]
     _renderer: PhantomData<Renderer>,
 }
 
@@ -155,14 +154,14 @@ pub enum ScrollMode {
     /// Scrollbar overlays the content when visible.
     Floating,
     /// Scrollbar is embedded in its own row below the tabs with the given spacing.
-    Embedded(Pixels),
-    /// Scrollbar is hidden and no buttons are shown; scrolling is only possible via mouse wheel.
-    Blank,
+    Below(Pixels),
+    /// Scrollbar is hidden; scrolling is only possible via mouse wheel.
+    NoScrollbar,
 }
 
 impl Default for ScrollMode {
     fn default() -> Self {
-        Self::Embedded(DEFAULT_SCROLLBAR_SPACING)
+        Self::Below(DEFAULT_SCROLLBAR_SPACING)
     }
 }
 
@@ -368,8 +367,8 @@ where
     /// Sets the scroll behavior of the [`TabBar`].
     ///
     /// Use [`ScrollMode::Floating`] for a floating scrollbar,
-    /// [`ScrollMode::Embedded`] for an always-visible embedded scrollbar,
-    /// or [`ScrollMode::Blank`] to hide the scrollbar entirely (mouse wheel only).
+    /// [`ScrollMode::Below`] for an always-visible embedded scrollbar,
+    /// or [`ScrollMode::NoScrollbar`] to hide the scrollbar entirely (mouse wheel only).
     #[must_use]
     pub fn scroll_mode(mut self, mode: ScrollMode) -> Self {
         self.scroll_mode = mode;
@@ -436,8 +435,8 @@ where
     fn scrollbar_direction(&self) -> scrollable::Direction {
         let scrollbar = match self.scroll_mode {
             ScrollMode::Floating => scrollable::Scrollbar::default(),
-            ScrollMode::Embedded(spacing) => scrollable::Scrollbar::default().spacing(spacing),
-            ScrollMode::Blank => scrollable::Scrollbar::hidden(),
+            ScrollMode::Below(spacing) => scrollable::Scrollbar::default().spacing(spacing),
+            ScrollMode::NoScrollbar => scrollable::Scrollbar::hidden(),
         };
         scrollable::Direction::Horizontal(scrollbar)
     }
@@ -471,7 +470,7 @@ where
     pub(crate) fn wrapper_element(&self) -> Element<'_, Message, Theme, Renderer> {
         let content = self.tab_content();
         let scrollable_height = match self.scroll_mode {
-            ScrollMode::Embedded(_) => Length::Shrink,
+            ScrollMode::Below(_) => Length::Shrink,
             _ => self.height,
         };
         let scrollable =
@@ -517,7 +516,7 @@ where
 {
     fn size(&self) -> Size<Length> {
         let height = match self.scroll_mode {
-            ScrollMode::Embedded(_) => Length::Shrink,
+            ScrollMode::Below(_) => Length::Shrink,
             _ => self.height,
         };
         Size::new(self.width, height)

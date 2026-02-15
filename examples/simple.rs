@@ -3,8 +3,8 @@
 // It was written by Kaiden42 <gitlab@tinysn.com>
 
 use iced::{
-    widget::{pick_list, Button, Column, Row, Text, TextInput},
     Alignment, Element,
+    widget::{Button, Column, Row, Text, TextInput, pick_list},
 };
 use std::fmt;
 
@@ -36,16 +36,16 @@ enum Message {
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ScrollModeChoice {
     Floating,
-    Embedded,
-    Blank,
+    Below,
+    NoScrollbar,
 }
 
 impl fmt::Display for ScrollModeChoice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ScrollModeChoice::Floating => write!(f, "Floating"),
-            ScrollModeChoice::Embedded => write!(f, "Embedded"),
-            ScrollModeChoice::Blank => write!(f, "Blank"),
+            ScrollModeChoice::Below => write!(f, "Below"),
+            ScrollModeChoice::NoScrollbar => write!(f, "No Scrollbar"),
         }
     }
 }
@@ -54,8 +54,8 @@ impl From<ScrollModeChoice> for ScrollMode {
     fn from(c: ScrollModeChoice) -> Self {
         match c {
             ScrollModeChoice::Floating => ScrollMode::Floating,
-            ScrollModeChoice::Embedded => ScrollMode::Embedded(4.0.into()),
-            ScrollModeChoice::Blank => ScrollMode::Blank,
+            ScrollModeChoice::Below => ScrollMode::Below(4.0.into()),
+            ScrollModeChoice::NoScrollbar => ScrollMode::NoScrollbar,
         }
     }
 }
@@ -63,8 +63,8 @@ impl From<ScrollModeChoice> for ScrollMode {
 fn scroll_mode_to_choice(mode: &ScrollMode) -> ScrollModeChoice {
     match mode {
         ScrollMode::Floating => ScrollModeChoice::Floating,
-        ScrollMode::Embedded(_) => ScrollModeChoice::Embedded,
-        ScrollMode::Blank => ScrollModeChoice::Blank,
+        ScrollMode::Below(_) => ScrollModeChoice::Below,
+        ScrollMode::NoScrollbar => ScrollModeChoice::NoScrollbar,
     }
 }
 
@@ -146,8 +146,8 @@ impl TabBarExample {
                         pick_list(
                             [
                                 ScrollModeChoice::Floating,
-                                ScrollModeChoice::Embedded,
-                                ScrollModeChoice::Blank,
+                                ScrollModeChoice::Below,
+                                ScrollModeChoice::NoScrollbar,
                             ],
                             Some(scroll_mode_to_choice(&self.scroll_mode)),
                             |choice| Message::ScrollModeChanged(choice.into()),
