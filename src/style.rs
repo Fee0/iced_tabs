@@ -30,7 +30,7 @@ pub struct BarStyle {
 impl Default for BarStyle {
     fn default() -> Self {
         Self {
-            background: None,
+            background: Some(Background::Color(Color::from_rgba(0.5, 0.5, 0.5, 0.1))),
             border_color: None,
             border_width: 0.0,
             border_radius: Radius::default(),
