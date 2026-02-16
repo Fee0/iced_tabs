@@ -5,6 +5,7 @@ use iced::{
     widget::{Button, Column, Container, Row, Slider, Text, TextInput, Toggler, pick_list},
 };
 use std::fmt;
+use std::time::Duration;
 
 use iced_fonts::CODICON_FONT_BYTES;
 use iced_tabs::{Position, ScrollMode, TabBar, TabLabel};
@@ -47,6 +48,7 @@ enum Message {
     ReorderableToggled(bool),
     LabelTypeChanged(LabelTypeChoice),
     IconPositionChanged(PositionChoice),
+    TooltipDelayChanged(f32),
 }
 
 /// Local enum for the scroll mode dropdown (maps to iced_tabs::ScrollMode).
@@ -156,6 +158,7 @@ struct TabBarExample {
     reorderable: bool,
     label_type: LabelTypeChoice,
     icon_position: PositionChoice,
+    tooltip_delay_ms: f32,
 }
 
 impl Default for TabBarExample {
@@ -177,6 +180,7 @@ impl Default for TabBarExample {
             reorderable: true,
             label_type: LabelTypeChoice::default(),
             icon_position: PositionChoice::default(),
+            tooltip_delay_ms: 700.0,
         }
     }
 }
@@ -242,6 +246,8 @@ impl TabBarExample {
             // Enum pick lists
             Message::LabelTypeChanged(v) => self.label_type = v,
             Message::IconPositionChanged(v) => self.icon_position = v,
+
+            Message::TooltipDelayChanged(v) => self.tooltip_delay_ms = v,
         }
     }
 
@@ -374,6 +380,13 @@ impl TabBarExample {
                 30.0,
                 Message::LabelSpacingChanged,
             ))
+            .push(slider_control(
+                "Tooltip delay",
+                self.tooltip_delay_ms,
+                0.0,
+                2000.0,
+                Message::TooltipDelayChanged,
+            ))
             .align_y(Alignment::Center)
             .padding(10.0)
             .spacing(10.0);
@@ -384,7 +397,7 @@ impl TabBarExample {
             .iter()
             .fold(
                 TabBar::new(Message::TabSelected),
-                |tab_bar, (tab_label, _, icon_idx)| {
+                |tab_bar, (tab_label, tab_content, icon_idx)| {
                     let idx = tab_bar.size();
                     let icon = TAB_ICONS[*icon_idx];
                     let label = match self.label_type {
@@ -392,7 +405,8 @@ impl TabBarExample {
                         LabelTypeChoice::Icon => TabLabel::Icon(icon),
                         LabelTypeChoice::IconText => TabLabel::IconText(icon, tab_label.clone()),
                     };
-                    tab_bar.push(idx, label)
+                    let tooltip = format!("{tab_label}: {tab_content}");
+                    tab_bar.push_with_tooltip(idx, label, tooltip)
                 },
             )
             .set_active_tab(&self.active_tab)
@@ -404,7 +418,8 @@ impl TabBarExample {
             .height(self.tab_height)
             .label_spacing(self.label_spacing)
             .set_position(self.icon_position.into())
-            .scroll_mode(self.scroll_mode);
+            .scroll_mode(self.scroll_mode)
+            .tooltip_delay(Duration::from_millis(self.tooltip_delay_ms as u64));
 
         if self.show_close_button {
             tab_bar = tab_bar.on_close(Message::TabClosed);

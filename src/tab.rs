@@ -1,18 +1,18 @@
 //! Content widget for [`TabBar`](super::TabBar) (handles selection/close in content-space for Scrollable).
 
 use crate::Status;
-use crate::style::Catalog;
+use crate::style::{Catalog, TooltipStyle};
 use crate::tab_bar::{Position, ensure_child_tree};
 use iced::advanced::svg;
 use iced::advanced::{
-    Clipboard, Layout, Shell, Widget,
+    Clipboard, Layout, Overlay, Shell, Widget,
     layout::{Limits, Node},
     renderer,
     widget::{Operation, Tree, tree},
 };
 use iced::widget::{Column, Container, Row, Space, Text, container, text};
 use iced::{
-    Alignment, Element, Event, Font, Length, Padding, Pixels, Point, Rectangle, Size,
+    Alignment, Border, Element, Event, Font, Length, Padding, Pixels, Point, Rectangle, Size,
     alignment::{Horizontal, Vertical},
     mouse, touch,
 };
@@ -20,6 +20,7 @@ use iced_fonts::CODICON_FONT;
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::{Arc, LazyLock};
+use std::time::{Duration, Instant};
 
 /// Offset added to icon/text size during layout to prevent clipping.
 const LAYOUT_SIZE_OFFSET: f32 = 1.0;
@@ -88,12 +89,25 @@ pub struct DragState {
     pub tab_offset_x: f32,
 }
 
+/// Tracks hover timing for a tab tooltip.
+#[derive(Debug, Clone)]
+pub struct TooltipState {
+    /// Index of the tab being hovered.
+    pub tab_index: usize,
+    /// When the hover started.
+    pub hover_start: Instant,
+    /// Cursor position when hover was first detected (window coordinates).
+    pub cursor_pos: Point,
+}
+
 /// State stored in `TabBarContent`'s tree for persisting `tab_statuses`.
 #[derive(Debug, Clone, Default)]
 pub struct TabBarContentState {
     pub tab_statuses: Vec<(Option<Status>, Option<bool>)>,
     /// Active drag-and-drop state, if any.
     pub drag: Option<DragState>,
+    /// Active tooltip hover tracking, if any.
+    pub tooltip: Option<TooltipState>,
 }
 
 pub struct Tab<'a, 'b, Message, TabId, Theme = iced::Theme, Renderer = iced::Renderer>
@@ -122,6 +136,8 @@ where
     on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
     on_reorder: Option<Arc<dyn Fn(usize, usize) -> Message>>,
     active_tab: usize,
+    tab_tooltips: Vec<Option<String>>,
+    tooltip_delay: Duration,
     class: &'a <Theme as Catalog>::Class<'b>,
     _renderer: PhantomData<Renderer>,
 }
@@ -172,6 +188,8 @@ where
         on_select: Arc<dyn Fn(TabId) -> Message>,
         on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
         on_reorder: Option<Arc<dyn Fn(usize, usize) -> Message>>,
+        tab_tooltips: Vec<Option<String>>,
+        tooltip_delay: Duration,
         class: &'a <Theme as Catalog>::Class<'b>,
     ) -> Self {
         Self {
@@ -195,6 +213,8 @@ where
             on_close,
             on_reorder,
             active_tab,
+            tab_tooltips,
+            tooltip_delay,
             class,
             _renderer: PhantomData,
         }
@@ -450,6 +470,7 @@ where
         tree::State::new(TabBarContentState {
             tab_statuses: self.tab_statuses.clone(),
             drag: None,
+            tooltip: None,
         })
     }
 
@@ -594,6 +615,8 @@ where
         }
 
         let mut request_redraw = false;
+        let mut hovered_tab_with_tooltip: Option<(usize, Point)> = None;
+
         for ((i, _tab), tab_layout) in self.tab_labels.iter().enumerate().zip(&tab_layouts) {
             let active_idx = self.active_tab;
             let tab_status = content_state
@@ -616,6 +639,16 @@ where
                 Status::Inactive
             };
 
+            // Track which tab with a tooltip is being hovered.
+            if !is_currently_dragging
+                && cursor.is_over(tab_layout.bounds())
+                && self.tab_tooltips.get(i).is_some_and(|t| t.is_some())
+            {
+                if let Some(pos) = cursor.position() {
+                    hovered_tab_with_tooltip = Some((i, pos));
+                }
+            }
+
             let mut is_cross_hovered = None;
             if self.has_close && !is_currently_dragging {
                 let mut tab_children = tab_layout.children();
@@ -624,12 +657,36 @@ where
                 }
             }
 
-            if (tab_status.0 != Some(current_status))
-                || tab_status.1 != is_cross_hovered
-            {
+            if (tab_status.0 != Some(current_status)) || tab_status.1 != is_cross_hovered {
                 *tab_status = (Some(current_status), is_cross_hovered);
                 request_redraw = true;
             }
+        }
+
+        // Update tooltip hover tracking.
+        match (&content_state.tooltip, hovered_tab_with_tooltip) {
+            (Some(ts), Some((idx, _pos))) if ts.tab_index == idx => {
+                // Still hovering the same tab -- keep the existing state.
+                // If the delay hasn't elapsed yet, keep requesting redraws.
+                if ts.hover_start.elapsed() < self.tooltip_delay {
+                    request_redraw = true;
+                }
+            }
+            (_, Some((idx, pos))) => {
+                // Started hovering a new tab with a tooltip.
+                content_state.tooltip = Some(TooltipState {
+                    tab_index: idx,
+                    hover_start: Instant::now(),
+                    cursor_pos: pos,
+                });
+                request_redraw = true;
+            }
+            (Some(_), None) => {
+                // Cursor left all tooltip-bearing tabs.
+                content_state.tooltip = None;
+                request_redraw = true;
+            }
+            (None, None) => {}
         }
 
         if request_redraw {
@@ -871,5 +928,139 @@ fn draw_tab<Theme, Renderer>(
                     .unwrap_or(Background::Color(Color::TRANSPARENT)),
             );
         }
+    }
+}
+
+/// A floating tooltip overlay rendered above all other content.
+pub(crate) struct TooltipOverlay<'a, Renderer>
+where
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+{
+    pub text: &'a str,
+    pub position: Point,
+    pub style: TooltipStyle,
+    pub text_size: f32,
+    pub font: Font,
+    _renderer: PhantomData<Renderer>,
+}
+
+impl<'a, Renderer> TooltipOverlay<'a, Renderer>
+where
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+{
+    pub fn new(
+        text: &'a str,
+        position: Point,
+        style: TooltipStyle,
+        text_size: f32,
+        font: Font,
+    ) -> Self {
+        Self {
+            text,
+            position,
+            style,
+            text_size,
+            font,
+            _renderer: PhantomData,
+        }
+    }
+}
+
+impl<Message, Theme, Renderer> Overlay<Message, Theme, Renderer> for TooltipOverlay<'_, Renderer>
+where
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+{
+    fn layout(&mut self, _renderer: &Renderer, bounds: Size) -> Node {
+        use iced::advanced::text::Paragraph;
+
+        let padding = self.style.padding;
+
+        // Measure the tooltip text to determine the node size.
+        let paragraph = <Renderer as iced::advanced::text::Renderer>::Paragraph::with_text(
+            iced::advanced::text::Text {
+                content: self.text,
+                bounds: Size::new(bounds.width * 0.5, f32::INFINITY),
+                size: Pixels(self.text_size),
+                font: self.font,
+                align_x: text::Alignment::Left,
+                align_y: Vertical::Top,
+                line_height: iced::advanced::widget::text::LineHeight::Relative(1.3),
+                shaping: text::Shaping::Advanced,
+                wrapping: iced::advanced::widget::text::Wrapping::default(),
+            },
+        );
+
+        let text_size = paragraph.min_bounds();
+        let node_width = text_size.width + padding.left + padding.right;
+        let node_height = text_size.height + padding.top + padding.bottom;
+
+        let mut x = self.position.x;
+        let mut y = self.position.y;
+
+        // Clamp to stay within window bounds.
+        if x + node_width > bounds.width {
+            x = (bounds.width - node_width).max(0.0);
+        }
+        if y + node_height > bounds.height {
+            // Show above cursor instead.
+            y = (self.position.y - node_height - 4.0).max(0.0);
+        }
+
+        let mut node = Node::new(Size::new(node_width, node_height));
+        node.move_to_mut(Point::new(x, y));
+        node
+    }
+
+    fn draw(
+        &self,
+        renderer: &mut Renderer,
+        _theme: &Theme,
+        _style: &renderer::Style,
+        layout: Layout<'_>,
+        _cursor: mouse::Cursor,
+    ) {
+        use iced::advanced::widget::text::{LineHeight, Wrapping};
+
+        let bounds = layout.bounds();
+        let padding = self.style.padding;
+
+        // Draw background.
+        renderer.fill_quad(
+            renderer::Quad {
+                bounds,
+                border: Border {
+                    radius: self.style.border_radius,
+                    width: self.style.border_width,
+                    color: self.style.border_color,
+                },
+                ..renderer::Quad::default()
+            },
+            self.style.background,
+        );
+
+        // Draw text.
+        let text_bounds = Rectangle {
+            x: bounds.x + padding.left,
+            y: bounds.y + padding.top,
+            width: bounds.width - padding.left - padding.right,
+            height: bounds.height - padding.top - padding.bottom,
+        };
+
+        renderer.fill_text(
+            iced::advanced::text::Text {
+                content: self.text.to_string(),
+                bounds: Size::new(text_bounds.width, text_bounds.height),
+                size: Pixels(self.text_size),
+                font: self.font,
+                align_x: text::Alignment::Left,
+                align_y: Vertical::Center,
+                line_height: LineHeight::Relative(1.3),
+                shaping: text::Shaping::Advanced,
+                wrapping: Wrapping::default(),
+            },
+            Point::new(text_bounds.x, text_bounds.center_y()),
+            self.style.text_color,
+            text_bounds,
+        );
     }
 }

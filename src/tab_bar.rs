@@ -5,19 +5,22 @@
 use iced::advanced::{
     Clipboard, Layout, Shell, Widget,
     layout::{Limits, Node},
-    mouse, renderer,
+    mouse, overlay, renderer,
     widget::{Operation, Tree, tree},
 };
 use iced::widget::{Scrollable, container, scrollable, text};
-use iced::{Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Size};
+use iced::{
+    Border, Color, Element, Event, Font, Length, Padding, Pixels, Point, Rectangle, Size, Vector,
+};
 
 use crate::style::{Catalog, Style};
-use crate::tab::TabLabel;
+use crate::tab::{TabLabel, TooltipOverlay};
 use crate::{Status, StyleFn, tab};
 use iced::mouse::Cursor;
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use std::time::Duration;
 
 const DEFAULT_ICON_SIZE: f32 = 16.0;
 const DEFAULT_TEXT_SIZE: f32 = 16.0;
@@ -30,6 +33,8 @@ const DEFAULT_DRAG_THRESHOLD: f32 = 5.0;
 const DEFAULT_SCROLLBAR_SPACING: Pixels = Pixels(4.0);
 /// Factor to convert vertical scroll lines to horizontal pixels (matches iced's scroll speed).
 const VERTICAL_TO_HORIZONTAL_SCROLL_FACTOR: f32 = 60.0;
+/// Default delay before a tooltip appears (in milliseconds).
+const DEFAULT_TOOLTIP_DELAY_MS: u64 = 500;
 
 /// State for the `TabBar` widget tree (used for diff tag).
 #[allow(missing_docs)]
@@ -75,6 +80,8 @@ where
     tab_indices: Vec<TabId>,
     /// Per-tab status and close-button hover state.
     tab_statuses: Vec<(Option<Status>, Option<bool>)>,
+    /// Optional tooltip text for each tab (parallel to `tab_labels`).
+    tab_tooltips: Vec<Option<String>>,
     /// The function that produces the message when a tab is selected.
     on_select: Arc<dyn Fn(TabId) -> Message>,
     /// The function that produces the message when the close icon was pressed.
@@ -114,6 +121,8 @@ where
     drag_threshold: f32,
     /// Scroll behavior and scrollbar visibility for the tab bar.
     scroll_mode: ScrollMode,
+    /// Delay before a tooltip appears when hovering a tab.
+    tooltip_delay: Duration,
     _renderer: PhantomData<Renderer>,
 }
 
@@ -210,6 +219,7 @@ where
     where
         F: 'static + Fn(TabId) -> Message,
     {
+        let count = tab_labels.len();
         Self {
             active_tab: 0,
             tab_indices: tab_labels.iter().map(|(id, _)| id.clone()).collect(),
@@ -234,6 +244,8 @@ where
             position: Position::default(),
             drag_threshold: DEFAULT_DRAG_THRESHOLD,
             scroll_mode: ScrollMode::default(),
+            tab_tooltips: vec![None; count],
+            tooltip_delay: Duration::from_millis(DEFAULT_TOOLTIP_DELAY_MS),
             _renderer: PhantomData,
         }
     }
@@ -363,6 +375,25 @@ where
         self.tab_labels.push(tab_label);
         self.tab_indices.push(id);
         self.tab_statuses.push((None, None));
+        self.tab_tooltips.push(None);
+        self
+    }
+
+    /// Pushes a [`TabLabel`] with an associated tooltip to the [`TabBar`].
+    ///
+    /// The tooltip text will appear after the configured
+    /// [`tooltip_delay`](Self::tooltip_delay) when the cursor hovers over the tab.
+    #[must_use]
+    pub fn push_with_tooltip(
+        mut self,
+        id: TabId,
+        tab_label: TabLabel,
+        tooltip: impl Into<String>,
+    ) -> Self {
+        self.tab_labels.push(tab_label);
+        self.tab_indices.push(id);
+        self.tab_statuses.push((None, None));
+        self.tab_tooltips.push(Some(tooltip.into()));
         self
     }
 
@@ -394,6 +425,16 @@ where
     #[must_use]
     pub fn scroll_mode(mut self, mode: ScrollMode) -> Self {
         self.scroll_mode = mode;
+        self
+    }
+
+    /// Sets the delay before a tooltip appears when hovering a tab.
+    ///
+    /// Default: 500 ms. Only affects tabs added with
+    /// [`push_with_tooltip`](Self::push_with_tooltip).
+    #[must_use]
+    pub fn tooltip_delay(mut self, delay: Duration) -> Self {
+        self.tooltip_delay = delay;
         self
     }
 
@@ -486,6 +527,8 @@ where
             Arc::clone(&self.on_select),
             self.on_close.as_ref().map(Arc::clone),
             self.on_reorder.as_ref().map(Arc::clone),
+            self.tab_tooltips.clone(),
+            self.tooltip_delay,
             &self.class,
         )
     }
@@ -709,6 +752,51 @@ where
             viewport,
             renderer,
         )
+    }
+
+    fn overlay<'b>(
+        &'b mut self,
+        state: &'b mut Tree,
+        layout: Layout<'_>,
+        _renderer: &Renderer,
+        _viewport: &Rectangle,
+        translation: Vector,
+    ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
+        // Navigate the state tree: TabBar -> Scrollable -> Tab (content).
+        let (tooltip_index, cursor_pos) = {
+            let content_state: &tab::TabBarContentState = state
+                .children
+                .get(0)?
+                .children
+                .get(0)?
+                .state
+                .downcast_ref::<tab::TabBarContentState>();
+
+            let ts = content_state.tooltip.as_ref()?;
+
+            if ts.hover_start.elapsed() < self.tooltip_delay {
+                return None;
+            }
+            (ts.tab_index, ts.cursor_pos)
+        };
+
+        let text = self.tab_tooltips.get(tooltip_index)?.as_ref()?;
+
+        let bar_bounds = layout.bounds();
+        let position = Point::new(
+            cursor_pos.x + translation.x,
+            bar_bounds.y + bar_bounds.height + translation.y + 4.0,
+        );
+
+        let tooltip = TooltipOverlay::new(
+            text.as_str(),
+            position,
+            crate::TooltipStyle::default(),
+            self.text_size.min(14.0),
+            self.text_font.unwrap_or_default(),
+        );
+
+        Some(overlay::Element::new(Box::new(tooltip)))
     }
 }
 

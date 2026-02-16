@@ -1,6 +1,6 @@
 //! Style and theme for the [`TabBar`](crate::TabBar).
 
-use iced::{Background, Color, Shadow, Theme, border::Radius};
+use iced::{Background, Color, Padding, Shadow, Theme, border::Radius};
 
 /// Combined style used by the [`TabBar`](crate::TabBar).
 #[derive(Clone, Copy, Debug, Default)]
@@ -9,6 +9,8 @@ pub struct Style {
     pub bar: BarStyle,
     /// Style of individual tabs.
     pub tab: TabStyle,
+    /// Style of tab tooltips.
+    pub tooltip: TooltipStyle,
 }
 
 /// The appearance of the outer tab bar container.
@@ -73,6 +75,36 @@ impl Default for TabStyle {
             icon_border_radius: 4.0.into(),
             text_color: [0.9, 0.9, 0.9].into(),
             shadow: Shadow::default(),
+        }
+    }
+}
+
+/// The appearance of tab tooltips.
+#[derive(Clone, Copy, Debug)]
+pub struct TooltipStyle {
+    /// The background of the tooltip.
+    pub background: Background,
+    /// The text color of the tooltip.
+    pub text_color: Color,
+    /// The border radius of the tooltip.
+    pub border_radius: Radius,
+    /// The border width of the tooltip.
+    pub border_width: f32,
+    /// The border color of the tooltip.
+    pub border_color: Color,
+    /// The padding inside the tooltip.
+    pub padding: Padding,
+}
+
+impl Default for TooltipStyle {
+    fn default() -> Self {
+        Self {
+            background: Background::Color(Color::from_rgba(0.15, 0.15, 0.15, 0.95)),
+            text_color: Color::from_rgb(0.9, 0.9, 0.9),
+            border_radius: Radius::new(4.0),
+            border_width: 1.0,
+            border_color: Color::from_rgba(0.4, 0.4, 0.4, 0.8),
+            padding: Padding::new(6.0).left(10.0).right(10.0),
         }
     }
 }
