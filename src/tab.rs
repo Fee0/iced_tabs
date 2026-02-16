@@ -103,7 +103,7 @@ pub struct TooltipState {
     pub tab_index: usize,
     /// When the hover started.
     pub hover_start: Instant,
-    /// Cursor position when hover was first detected (window coordinates).
+    /// Last-known cursor position (in window coordinates).
     pub cursor_pos: Point,
 }
 

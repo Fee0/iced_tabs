@@ -731,6 +731,12 @@ where
 
                 self.tab_statuses.clone_from(&content_state.tab_statuses);
 
+                if let Some(tooltip) = &mut content_state.tooltip {
+                    if let Some(pos) = cursor.position() {
+                        tooltip.cursor_pos = pos;
+                    }
+                }
+
                 if let Some(drag) = content_state.drag.as_mut() {
                     if drag.is_dragging {
                         if let Event::Mouse(mouse::Event::CursorMoved { position }) = event {
