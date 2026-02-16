@@ -25,7 +25,7 @@ const DEFAULT_CLOSE_SIZE: f32 = 16.0;
 const DEFAULT_PADDING: Padding = Padding::new(5.0);
 const DEFAULT_SPACING: Pixels = Pixels::ZERO;
 const DEFAULT_LABEL_SPACING: f32 = 4.0;
-/// The default spacing for the embedded scrollbar (when not floating).
+/// The default spacing for the scrollbar below the tabs (when not floating).
 const DEFAULT_SCROLLBAR_SPACING: Pixels = Pixels(4.0);
 /// Factor to convert vertical scroll lines to horizontal pixels (matches iced's scroll speed).
 const VERTICAL_TO_HORIZONTAL_SCROLL_FACTOR: f32 = 60.0;
