@@ -4,7 +4,7 @@
 
 use iced::{
     Alignment, Element,
-    widget::{Button, Column, Row, Slider, Text, TextInput, Toggler, pick_list},
+    widget::{Button, Column, Container, Row, Slider, Text, TextInput, Toggler, pick_list},
 };
 use std::fmt;
 
@@ -29,13 +29,8 @@ fn main() -> iced::Result {
     .run()
 }
 
-// ---------------------------------------------------------------------------
-// Messages
-// ---------------------------------------------------------------------------
-
 #[derive(Debug, Clone)]
 enum Message {
-    // Existing
     TabSelected(usize),
     TabClosed(usize),
     TabReordered(usize, usize),
@@ -43,8 +38,6 @@ enum Message {
     TabContentInputChanged(String),
     NewTab,
     ScrollModeChanged(ScrollMode),
-
-    // New – numeric sliders
     TabSpacingChanged(f32),
     TabPaddingChanged(f32),
     TextSizeChanged(f32),
@@ -52,19 +45,11 @@ enum Message {
     CloseSizeChanged(f32),
     TabHeightChanged(f32),
     LabelSpacingChanged(f32),
-
-    // New – toggles
     ShowCloseButtonToggled(bool),
     ReorderableToggled(bool),
-
-    // New – enum pick lists
     LabelTypeChanged(LabelTypeChoice),
     IconPositionChanged(PositionChoice),
 }
-
-// ---------------------------------------------------------------------------
-// Helper enums for pick lists
-// ---------------------------------------------------------------------------
 
 /// Local enum for the scroll mode dropdown (maps to iced_tabs::ScrollMode).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -284,34 +269,46 @@ impl TabBarExample {
 
         // -- Row 2: pick lists + toggles ----------------------------------------
         let controls_row = Row::new()
-            .push(labeled("Scroll mode:", pick_list(
-                [
-                    ScrollModeChoice::Floating,
-                    ScrollModeChoice::Below,
-                    ScrollModeChoice::NoScrollbar,
-                ],
-                Some(scroll_mode_to_choice(&self.scroll_mode)),
-                |c| Message::ScrollModeChanged(c.into()),
-            ).width(130)))
-            .push(labeled("Label type:", pick_list(
-                [
-                    LabelTypeChoice::Text,
-                    LabelTypeChoice::Icon,
-                    LabelTypeChoice::IconText,
-                ],
-                Some(self.label_type),
-                Message::LabelTypeChanged,
-            ).width(130)))
-            .push(labeled("Icon position:", pick_list(
-                [
-                    PositionChoice::Top,
-                    PositionChoice::Right,
-                    PositionChoice::Bottom,
-                    PositionChoice::Left,
-                ],
-                Some(self.icon_position),
-                Message::IconPositionChanged,
-            ).width(110)))
+            .push(labeled(
+                "Scroll mode:",
+                pick_list(
+                    [
+                        ScrollModeChoice::Floating,
+                        ScrollModeChoice::Below,
+                        ScrollModeChoice::NoScrollbar,
+                    ],
+                    Some(scroll_mode_to_choice(&self.scroll_mode)),
+                    |c| Message::ScrollModeChanged(c.into()),
+                )
+                .width(130),
+            ))
+            .push(labeled(
+                "Label type:",
+                pick_list(
+                    [
+                        LabelTypeChoice::Text,
+                        LabelTypeChoice::Icon,
+                        LabelTypeChoice::IconText,
+                    ],
+                    Some(self.label_type),
+                    Message::LabelTypeChanged,
+                )
+                .width(130),
+            ))
+            .push(labeled(
+                "Icon position:",
+                pick_list(
+                    [
+                        PositionChoice::Top,
+                        PositionChoice::Right,
+                        PositionChoice::Bottom,
+                        PositionChoice::Left,
+                    ],
+                    Some(self.icon_position),
+                    Message::IconPositionChanged,
+                )
+                .width(110),
+            ))
             .push(
                 Toggler::new(self.show_close_button)
                     .on_toggle(Message::ShowCloseButtonToggled)
@@ -330,13 +327,55 @@ impl TabBarExample {
 
         // -- Row 3: sliders -----------------------------------------------------
         let sliders_row = Row::new()
-            .push(slider_control("Spacing", self.tab_spacing, 0.0, 30.0, Message::TabSpacingChanged))
-            .push(slider_control("Padding", self.tab_padding, 0.0, 30.0, Message::TabPaddingChanged))
-            .push(slider_control("Text size", self.text_size, 8.0, 40.0, Message::TextSizeChanged))
-            .push(slider_control("Icon size", self.icon_size, 8.0, 40.0, Message::IconSizeChanged))
-            .push(slider_control("Close size", self.close_size, 8.0, 40.0, Message::CloseSizeChanged))
-            .push(slider_control("Height", self.tab_height, 20.0, 80.0, Message::TabHeightChanged))
-            .push(slider_control("Label spacing", self.label_spacing, 0.0, 30.0, Message::LabelSpacingChanged))
+            .push(slider_control(
+                "Spacing",
+                self.tab_spacing,
+                0.0,
+                30.0,
+                Message::TabSpacingChanged,
+            ))
+            .push(slider_control(
+                "Padding",
+                self.tab_padding,
+                0.0,
+                30.0,
+                Message::TabPaddingChanged,
+            ))
+            .push(slider_control(
+                "Text size",
+                self.text_size,
+                8.0,
+                40.0,
+                Message::TextSizeChanged,
+            ))
+            .push(slider_control(
+                "Icon size",
+                self.icon_size,
+                8.0,
+                40.0,
+                Message::IconSizeChanged,
+            ))
+            .push(slider_control(
+                "Close size",
+                self.close_size,
+                8.0,
+                40.0,
+                Message::CloseSizeChanged,
+            ))
+            .push(slider_control(
+                "Height",
+                self.tab_height,
+                20.0,
+                120.0,
+                Message::TabHeightChanged,
+            ))
+            .push(slider_control(
+                "Label spacing",
+                self.label_spacing,
+                0.0,
+                30.0,
+                Message::LabelSpacingChanged,
+            ))
             .align_y(Alignment::Center)
             .padding(10.0)
             .spacing(10.0);
@@ -353,9 +392,7 @@ impl TabBarExample {
                     let label = match self.label_type {
                         LabelTypeChoice::Text => TabLabel::Text(tab_label.clone()),
                         LabelTypeChoice::Icon => TabLabel::Icon(icon),
-                        LabelTypeChoice::IconText => {
-                            TabLabel::IconText(icon, tab_label.clone())
-                        }
+                        LabelTypeChoice::IconText => TabLabel::IconText(icon, tab_label.clone()),
                     };
                     tab_bar.push(idx, label)
                 },
@@ -386,22 +423,25 @@ impl TabBarExample {
         }
         .size(25);
 
+        let content_area = Container::new(content)
+            .width(iced::Length::Fill)
+            .height(iced::Length::Fill)
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center);
+
         // -- Assemble -----------------------------------------------------------
         Column::new()
             .push(new_tab_row)
             .push(controls_row)
             .push(sliders_row)
             .push(tab_bar)
-            .push(content)
+            .push(content_area)
             .into()
     }
 }
 
 /// A label followed by a widget, arranged horizontally.
-fn labeled<'a>(
-    label: &str,
-    widget: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
+fn labeled<'a>(label: &str, widget: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
     Row::new()
         .push(Text::new(label.to_owned()).size(14))
         .push(widget)
