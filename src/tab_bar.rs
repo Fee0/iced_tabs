@@ -25,6 +25,7 @@ const DEFAULT_CLOSE_SIZE: f32 = 16.0;
 const DEFAULT_PADDING: Padding = Padding::new(5.0);
 const DEFAULT_SPACING: Pixels = Pixels::ZERO;
 const DEFAULT_LABEL_SPACING: f32 = 4.0;
+const DEFAULT_DRAG_THRESHOLD: f32 = 5.0;
 /// The default spacing for the scrollbar below the tabs (when not floating).
 const DEFAULT_SCROLLBAR_SPACING: Pixels = Pixels(4.0);
 /// Factor to convert vertical scroll lines to horizontal pixels (matches iced's scroll speed).
@@ -87,6 +88,8 @@ where
     height: Length,
     /// The maximum height of the [`TabBar`].
     max_height: f32,
+    /// Optional fixed width for each tab. When `None`, tabs auto-size to content.
+    tab_width: Option<f32>,
     /// The icon size.
     icon_size: f32,
     /// The text size.
@@ -107,6 +110,8 @@ where
     class: <Theme as Catalog>::Class<'a>,
     /// Where the icon is placed relative to text
     position: Position,
+    /// Minimum mouse movement (in pixels) before a press is considered a drag.
+    drag_threshold: f32,
     /// Scroll behavior and scrollbar visibility for the tab bar.
     scroll_mode: ScrollMode,
     _renderer: PhantomData<Renderer>,
@@ -216,6 +221,7 @@ where
             width: Length::Fill,
             height: Length::Shrink,
             max_height: u32::MAX as f32,
+            tab_width: None,
             icon_size: DEFAULT_ICON_SIZE,
             text_size: DEFAULT_TEXT_SIZE,
             close_size: DEFAULT_CLOSE_SIZE,
@@ -226,6 +232,7 @@ where
             text_font: None,
             class: <Theme as Catalog>::default(),
             position: Position::default(),
+            drag_threshold: DEFAULT_DRAG_THRESHOLD,
             scroll_mode: ScrollMode::default(),
             _renderer: PhantomData,
         }
@@ -292,6 +299,18 @@ where
         self
     }
 
+    /// Sets a fixed width for every tab in the [`TabBar`].
+    ///
+    /// When set, all tabs share the same pixel width regardless of their
+    /// label content. Tabs that overflow the bar can be reached via the
+    /// scrollbar. When `None` (the default), each tab auto-sizes to its
+    /// content.
+    #[must_use]
+    pub fn tab_width(mut self, width: f32) -> Self {
+        self.tab_width = Some(width);
+        self
+    }
+
     /// Sets the message that will be produced when the close icon of a tab
     /// on the [`TabBar`] is pressed.
     ///
@@ -318,6 +337,16 @@ where
         F: 'static + Fn(usize, usize) -> Message,
     {
         self.on_reorder = Some(Arc::new(on_reorder));
+        self
+    }
+
+    /// Sets the minimum mouse movement (in pixels) before a press is
+    /// considered a drag. Defaults to `5.0`.
+    ///
+    /// Only meaningful when [`on_reorder`](Self::on_reorder) is set.
+    #[must_use]
+    pub fn drag_threshold(mut self, threshold: f32) -> Self {
+        self.drag_threshold = threshold;
         self
     }
 
@@ -449,6 +478,8 @@ where
             self.text_font,
             self.height,
             self.position,
+            self.tab_width,
+            self.drag_threshold,
             self.on_close.is_some(),
             self.active_tab
                 .min(self.tab_indices.len().saturating_sub(1)),

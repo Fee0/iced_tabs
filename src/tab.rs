@@ -29,9 +29,6 @@ const CLOSE_SVG: &[u8] = include_bytes!("../assets/close.svg");
 /// Cached SVG handle for the close icon (avoids re-allocating on every draw call).
 static CLOSE_SVG_HANDLE: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(CLOSE_SVG));
-/// Minimum mouse movement (in pixels) before a press is considered a drag.
-const DRAG_THRESHOLD: f32 = 5.0;
-
 /// The content label displayed on a tab in the [`TabBar`](super::TabBar).
 #[derive(Clone, Hash, Debug)]
 pub enum TabLabel {
@@ -118,6 +115,8 @@ where
     text_font: Option<Font>,
     height: Length,
     position: Position,
+    tab_width: Option<f32>,
+    drag_threshold: f32,
     has_close: bool,
     on_select: Arc<dyn Fn(TabId) -> Message>,
     on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
@@ -166,6 +165,8 @@ where
         text_font: Option<Font>,
         height: Length,
         position: Position,
+        tab_width: Option<f32>,
+        drag_threshold: f32,
         has_close: bool,
         active_tab: usize,
         on_select: Arc<dyn Fn(TabId) -> Message>,
@@ -187,6 +188,8 @@ where
             text_font,
             height,
             position,
+            tab_width,
+            drag_threshold,
             has_close,
             on_select,
             on_close,
@@ -294,13 +297,13 @@ where
                                     .align_y(Vertical::Center)
                             }
                         }
-                        .width(Length::Shrink)
+                        .width(self.tab_width.map_or(Length::Shrink, Length::Fixed))
                         .height(self.height),
                     )
                     .align_y(Alignment::Center)
                     .padding(self.padding)
                     .spacing(self.label_spacing)
-                    .width(Length::Shrink);
+                    .width(self.tab_width.map_or(Length::Shrink, Length::Fixed));
 
                 if self.has_close {
                     label_row = label_row.push(
@@ -558,7 +561,7 @@ where
                     if !drag.is_dragging {
                         let dx = pos.x - drag.press_origin.x;
                         let dy = pos.y - drag.press_origin.y;
-                        if dx * dx + dy * dy >= DRAG_THRESHOLD * DRAG_THRESHOLD {
+                        if dx * dx + dy * dy >= self.drag_threshold * self.drag_threshold {
                             drag.is_dragging = true;
                         }
                     }
