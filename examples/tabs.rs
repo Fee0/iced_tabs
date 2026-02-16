@@ -1,6 +1,4 @@
 // This example demonstrates how to use the tab bar widget
-//
-// It was written by Kaiden42 <gitlab@tinysn.com>
 
 use iced::{
     Alignment, Element,
@@ -12,11 +10,11 @@ use iced_fonts::CODICON_FONT_BYTES;
 use iced_tabs::{Position, ScrollMode, TabBar, TabLabel};
 
 const TAB_ICONS: &[char] = &[
-    '\u{ea7b}', // file
     '\u{eb51}', // gear
     '\u{eb06}', // home
     '\u{eb1e}', // bookmark
     '\u{eb35}', // bell
+    '\u{ea7b}', // file
 ];
 
 fn main() -> iced::Result {
