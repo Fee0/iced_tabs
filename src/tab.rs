@@ -87,6 +87,13 @@ pub struct DragState {
     pub is_dragging: bool,
     /// Horizontal offset from the tab's left edge to the press point.
     pub tab_offset_x: f32,
+    /// Vertical offset from the tab's top edge to the press point.
+    pub tab_offset_y: f32,
+    /// Size of the dragged tab (set when drag threshold is crossed).
+    pub tab_size: Size,
+    /// Cursor position in window coordinates (updated at the TabBar level
+    /// so it stays current even when the cursor leaves the Scrollable).
+    pub overlay_pos: Point,
 }
 
 /// Tracks hover timing for a tab tooltip.
@@ -221,128 +228,23 @@ where
     }
 
     fn row_element(&self) -> Row<'_, Message, Theme, Renderer> {
-        fn layout_icon<Theme, Renderer>(
-            icon: &char,
-            size: f32,
-            font: Option<Font>,
-        ) -> Text<'_, Theme, Renderer>
-        where
-            Renderer: iced::advanced::text::Renderer,
-            Renderer::Font: From<Font>,
-            Theme: text::Catalog,
-        {
-            Text::<Theme, Renderer>::new(icon.to_string())
-                .size(size)
-                .font(font.unwrap_or_default())
-                .align_x(Horizontal::Center)
-                .align_y(Vertical::Center)
-                .shaping(text::Shaping::Advanced)
-                .width(Length::Shrink)
-        }
-
-        fn layout_text<Theme, Renderer>(
-            text: &str,
-            size: f32,
-            font: Option<Font>,
-        ) -> Text<'_, Theme, Renderer>
-        where
-            Renderer: iced::advanced::text::Renderer,
-            Renderer::Font: From<Font>,
-            Theme: text::Catalog,
-        {
-            Text::<Theme, Renderer>::new(text)
-                .size(size)
-                .font(font.unwrap_or_default())
-                .align_x(Horizontal::Center)
-                .align_y(Vertical::Center)
-                .shaping(text::Shaping::Advanced)
-                .width(Length::Shrink)
-        }
-
         self.tab_labels
             .iter()
             .fold(Row::<Message, Theme, Renderer>::new(), |row, tab_label| {
-                let mut label_row = Row::new()
-                    .push(
-                        match tab_label {
-                            TabLabel::Icon(icon) => Container::new(layout_icon(
-                                icon,
-                                self.icon_size + LAYOUT_SIZE_OFFSET,
-                                self.font,
-                            ))
-                            .align_x(Horizontal::Center)
-                            .align_y(Vertical::Center),
-                            TabLabel::Text(text) => Container::new(layout_text(
-                                text.as_str(),
-                                self.text_size + LAYOUT_SIZE_OFFSET,
-                                self.text_font,
-                            ))
-                            .align_x(Horizontal::Center)
-                            .align_y(Vertical::Center),
-                            TabLabel::IconText(icon, text) => {
-                                let icon_el = layout_icon(
-                                    icon,
-                                    self.icon_size + LAYOUT_SIZE_OFFSET,
-                                    self.font,
-                                );
-                                let text_el = layout_text(
-                                    text.as_str(),
-                                    self.text_size + LAYOUT_SIZE_OFFSET,
-                                    self.text_font,
-                                );
-                                let (first, second): (
-                                    Element<'_, Message, Theme, Renderer>,
-                                    Element<'_, Message, Theme, Renderer>,
-                                ) = if self.position.is_icon_first() {
-                                    (icon_el.into(), text_el.into())
-                                } else {
-                                    (text_el.into(), icon_el.into())
-                                };
-                                let inner: Element<'_, Message, Theme, Renderer> =
-                                    if self.position.is_vertical() {
-                                        Column::new()
-                                            .align_x(Alignment::Center)
-                                            .push(first)
-                                            .push(second)
-                                            .into()
-                                    } else {
-                                        Row::new()
-                                            .align_y(Alignment::Center)
-                                            .push(first)
-                                            .push(second)
-                                            .into()
-                                    };
-                                Container::new(inner)
-                                    .align_x(Horizontal::Center)
-                                    .align_y(Vertical::Center)
-                            }
-                        }
-                        .width(self.tab_width.map_or(Length::Shrink, Length::Fixed))
-                        .height(self.height),
-                    )
-                    .align_y(Alignment::Center)
-                    .padding(self.padding)
-                    .spacing(self.label_spacing)
-                    .width(self.tab_width.map_or(Length::Shrink, Length::Fixed));
-
-                if self.has_close {
-                    label_row = label_row.push(
-                        Row::new()
-                            .width(Length::Fixed(
-                                self.close_size * CLOSE_HIT_AREA_MULTIPLIER + LAYOUT_SIZE_OFFSET,
-                            ))
-                            .height(Length::Fixed(
-                                self.close_size * CLOSE_HIT_AREA_MULTIPLIER + LAYOUT_SIZE_OFFSET,
-                            ))
-                            .align_y(Alignment::Center)
-                            .push(
-                                Space::new()
-                                    .width(self.close_size + LAYOUT_SIZE_OFFSET)
-                                    .height(self.close_size + LAYOUT_SIZE_OFFSET),
-                            ),
-                    );
-                }
-
+                let label_row = build_single_tab_row::<Message, Theme, Renderer>(
+                    tab_label,
+                    self.icon_size,
+                    self.text_size,
+                    self.close_size,
+                    self.label_spacing,
+                    self.padding,
+                    self.tab_width,
+                    self.height,
+                    self.has_close,
+                    self.position,
+                    self.font,
+                    self.text_font,
+                );
                 row.push(label_row)
             })
             .width(Length::Shrink)
@@ -350,6 +252,141 @@ where
             .spacing(self.spacing)
             .align_y(Alignment::Center)
     }
+}
+
+fn layout_icon<Theme, Renderer>(
+    icon: &char,
+    size: f32,
+    font: Option<Font>,
+) -> Text<'_, Theme, Renderer>
+where
+    Renderer: iced::advanced::text::Renderer,
+    Renderer::Font: From<Font>,
+    Theme: text::Catalog,
+{
+    Text::<Theme, Renderer>::new(icon.to_string())
+        .size(size)
+        .font(font.unwrap_or_default())
+        .align_x(Horizontal::Center)
+        .align_y(Vertical::Center)
+        .shaping(text::Shaping::Advanced)
+        .width(Length::Shrink)
+}
+
+fn layout_text<Theme, Renderer>(
+    text: &str,
+    size: f32,
+    font: Option<Font>,
+) -> Text<'_, Theme, Renderer>
+where
+    Renderer: iced::advanced::text::Renderer,
+    Renderer::Font: From<Font>,
+    Theme: text::Catalog,
+{
+    Text::<Theme, Renderer>::new(text)
+        .size(size)
+        .font(font.unwrap_or_default())
+        .align_x(Horizontal::Center)
+        .align_y(Vertical::Center)
+        .shaping(text::Shaping::Advanced)
+        .width(Length::Shrink)
+}
+
+/// Builds a single tab's layout row (label content + optional close button).
+///
+/// Used by both `Tab::row_element` and `DragTabOverlay::layout`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn build_single_tab_row<'a, Message: 'a, Theme: 'a, Renderer: 'a>(
+    tab_label: &'a TabLabel,
+    icon_size: f32,
+    text_size: f32,
+    close_size: f32,
+    label_spacing: f32,
+    padding: Padding,
+    tab_width: Option<f32>,
+    height: Length,
+    has_close: bool,
+    position: Position,
+    font: Option<Font>,
+    text_font: Option<Font>,
+) -> Row<'a, Message, Theme, Renderer>
+where
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+    Theme: Catalog + text::Catalog + container::Catalog,
+{
+    let mut label_row = Row::new()
+        .push(
+            match tab_label {
+                TabLabel::Icon(icon) => Container::new(layout_icon(
+                    icon,
+                    icon_size + LAYOUT_SIZE_OFFSET,
+                    font,
+                ))
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center),
+                TabLabel::Text(text) => Container::new(layout_text(
+                    text.as_str(),
+                    text_size + LAYOUT_SIZE_OFFSET,
+                    text_font,
+                ))
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center),
+                TabLabel::IconText(icon, text) => {
+                    let icon_el = layout_icon(icon, icon_size + LAYOUT_SIZE_OFFSET, font);
+                    let text_el = layout_text(text.as_str(), text_size + LAYOUT_SIZE_OFFSET, text_font);
+                    let (first, second): (
+                        Element<'_, Message, Theme, Renderer>,
+                        Element<'_, Message, Theme, Renderer>,
+                    ) = if position.is_icon_first() {
+                        (icon_el.into(), text_el.into())
+                    } else {
+                        (text_el.into(), icon_el.into())
+                    };
+                    let inner: Element<'_, Message, Theme, Renderer> = if position.is_vertical() {
+                        Column::new()
+                            .align_x(Alignment::Center)
+                            .push(first)
+                            .push(second)
+                            .into()
+                    } else {
+                        Row::new()
+                            .align_y(Alignment::Center)
+                            .push(first)
+                            .push(second)
+                            .into()
+                    };
+                    Container::new(inner)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center)
+                }
+            }
+            .width(tab_width.map_or(Length::Shrink, Length::Fixed))
+            .height(height),
+        )
+        .align_y(Alignment::Center)
+        .padding(padding)
+        .spacing(label_spacing)
+        .width(tab_width.map_or(Length::Shrink, Length::Fixed));
+
+    if has_close {
+        label_row = label_row.push(
+            Row::new()
+                .width(Length::Fixed(
+                    close_size * CLOSE_HIT_AREA_MULTIPLIER + LAYOUT_SIZE_OFFSET,
+                ))
+                .height(Length::Fixed(
+                    close_size * CLOSE_HIT_AREA_MULTIPLIER + LAYOUT_SIZE_OFFSET,
+                ))
+                .align_y(Alignment::Center)
+                .push(
+                    Space::new()
+                        .width(close_size + LAYOUT_SIZE_OFFSET)
+                        .height(close_size + LAYOUT_SIZE_OFFSET),
+                ),
+        );
+    }
+
+    label_row
 }
 
 impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
@@ -441,30 +478,8 @@ where
                 }
             }
 
-            // Draw the dragged tab floating at the cursor position on a new
-            // layer so it escapes the scrollable's clip and renders on top.
-            if let Some(dragged_layout) = tab_layouts.get(dragged_idx) {
-                let original_bounds = dragged_layout.bounds();
-                let offset_x = drag.current_pos.x - drag.tab_offset_x - original_bounds.x;
-                let offset_y = drag.current_pos.y - original_bounds.center_y();
-
-                renderer.with_layer(*viewport, |renderer| {
-                    renderer.with_translation(
-                        iced::Vector::new(offset_x, offset_y),
-                        |renderer| {
-                            let dragged_tab = &self.tab_labels[dragged_idx];
-                            let dragged_status = (Some(Status::Dragging), None);
-                            draw_tab(
-                                renderer,
-                                dragged_tab,
-                                &dragged_status,
-                                *dragged_layout,
-                                &ctx,
-                            );
-                        },
-                    );
-                });
-            }
+            // The dragged tab itself is rendered by DragTabOverlay (via
+            // TabBar::overlay), so nothing more to draw here.
         }
     }
 
@@ -573,6 +588,9 @@ where
                                 current_pos: pos,
                                 is_dragging: false,
                                 tab_offset_x: pos.x - tab_bounds.x,
+                                tab_offset_y: pos.y - tab_bounds.y,
+                                tab_size: Size::ZERO,
+                                overlay_pos: Point::new(0.0, 0.0),
                             });
                         }
                     }
@@ -590,6 +608,10 @@ where
                         let dy = pos.y - drag.press_origin.y;
                         if dx * dx + dy * dy >= self.drag_threshold * self.drag_threshold {
                             drag.is_dragging = true;
+                            if let Some(tl) = tab_layouts.get(drag.tab_index) {
+                                let b = tl.bounds();
+                                drag.tab_size = Size::new(b.width, b.height);
+                            }
                         }
                     }
                     if drag.is_dragging {
@@ -1067,5 +1089,131 @@ where
             self.style.text_color,
             text_bounds,
         );
+    }
+}
+
+/// A floating overlay that renders the dragged tab above all other content.
+///
+/// This overlay escapes the scrollable's clip region, ensuring the dragged tab
+/// is never clipped. Its Y position is locked to the tab bar's row while X
+/// follows the cursor.
+pub(crate) struct DragTabOverlay<'a, 'b, Theme, Renderer>
+where
+    Theme: Catalog,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+{
+    pub tab_label: TabLabel,
+    pub position: Point,
+    pub tab_size: Size,
+    pub class: &'a <Theme as Catalog>::Class<'b>,
+    pub icon_data: (Font, f32),
+    pub text_data: (Font, f32),
+    pub close_size: f32,
+    pub label_spacing: f32,
+    pub padding: Padding,
+    pub tab_width: Option<f32>,
+    pub height: Length,
+    pub has_close: bool,
+    pub icon_position: Position,
+    _renderer: PhantomData<Renderer>,
+}
+
+impl<'a, 'b, Theme, Renderer> DragTabOverlay<'a, 'b, Theme, Renderer>
+where
+    Theme: Catalog,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font>,
+{
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        tab_label: TabLabel,
+        position: Point,
+        tab_size: Size,
+        class: &'a <Theme as Catalog>::Class<'b>,
+        icon_data: (Font, f32),
+        text_data: (Font, f32),
+        close_size: f32,
+        label_spacing: f32,
+        padding: Padding,
+        tab_width: Option<f32>,
+        height: Length,
+        has_close: bool,
+        icon_position: Position,
+    ) -> Self {
+        Self {
+            tab_label,
+            position,
+            tab_size,
+            class,
+            icon_data,
+            text_data,
+            close_size,
+            label_spacing,
+            padding,
+            tab_width,
+            height,
+            has_close,
+            icon_position,
+            _renderer: PhantomData,
+        }
+    }
+}
+
+impl<Message, Theme, Renderer> Overlay<Message, Theme, Renderer>
+    for DragTabOverlay<'_, '_, Theme, Renderer>
+where
+    Theme: Catalog + text::Catalog + container::Catalog,
+    Renderer: renderer::Renderer + iced::advanced::text::Renderer<Font = Font> + svg::Renderer,
+{
+    fn layout(&mut self, renderer: &Renderer, bounds: Size) -> Node {
+        let label_row: Row<'_, Message, Theme, Renderer> =
+            build_single_tab_row::<Message, Theme, Renderer>(
+                &self.tab_label,
+                self.icon_data.1,
+                self.text_data.1,
+                self.close_size,
+                self.label_spacing,
+                self.padding,
+                self.tab_width,
+                self.height,
+                self.has_close,
+                self.icon_position,
+                Some(self.icon_data.0),
+                Some(self.text_data.0),
+            );
+
+        let mut element: Element<'_, Message, Theme, Renderer> = label_row.into();
+        let mut tree = Tree::new(element.as_widget());
+
+        let limits = Limits::new(Size::ZERO, self.tab_size);
+        let mut node = element.as_widget_mut().layout(&mut tree, renderer, &limits);
+
+        // Clamp X so the tab stays within window bounds.
+        let x = self.position.x.clamp(0.0, (bounds.width - self.tab_size.width).max(0.0));
+        let y = self.position.y;
+
+        node.move_to_mut(Point::new(x, y));
+        node
+    }
+
+    fn draw(
+        &self,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        _style: &renderer::Style,
+        layout: Layout<'_>,
+        _cursor: mouse::Cursor,
+    ) {
+        let viewport = layout.bounds();
+        let ctx = DrawCtx {
+            position: self.icon_position,
+            theme,
+            class: self.class,
+            icon_data: self.icon_data,
+            text_data: self.text_data,
+            close_size: self.close_size,
+            viewport: &viewport,
+        };
+        let dragged_status = (Some(Status::Dragging), None);
+        draw_tab(renderer, &self.tab_label, &dragged_status, layout, &ctx);
     }
 }

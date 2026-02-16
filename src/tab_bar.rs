@@ -14,7 +14,7 @@ use iced::{
 };
 
 use crate::style::{Catalog, Style};
-use crate::tab::{TabLabel, TooltipOverlay};
+use crate::tab::{DragTabOverlay, TabLabel, TooltipOverlay};
 use crate::{Status, StyleFn, tab};
 use iced::mouse::Cursor;
 use std::fmt;
@@ -725,13 +725,20 @@ where
         }
 
         if let Some(wrapper_tree) = state.children.get_mut(0) {
-            let content_state_opt: Option<&tab::TabBarContentState> = wrapper_tree
-                .children
-                .get_mut(0)
-                .map(|content_tree| content_tree.state.downcast_ref::<tab::TabBarContentState>());
+            if let Some(content_tree) = wrapper_tree.children.get_mut(0) {
+                let content_state =
+                    content_tree.state.downcast_mut::<tab::TabBarContentState>();
 
-            if let Some(content_state) = content_state_opt {
                 self.tab_statuses.clone_from(&content_state.tab_statuses);
+
+                if let Some(drag) = content_state.drag.as_mut() {
+                    if drag.is_dragging {
+                        if let Event::Mouse(mouse::Event::CursorMoved { position }) = event {
+                            drag.overlay_pos = *position;
+                            shell.request_redraw();
+                        }
+                    }
+                }
             }
         }
     }
@@ -763,17 +770,50 @@ where
         translation: Vector,
     ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
         // Navigate the state tree: TabBar -> Scrollable -> Tab (content).
+        let content_state: &tab::TabBarContentState = state
+            .children
+            .get(0)?
+            .children
+            .get(0)?
+            .state
+            .downcast_ref::<tab::TabBarContentState>();
+
+        // Drag overlay takes priority over tooltip.
+        if let Some(drag) = &content_state.drag {
+            if drag.is_dragging {
+                if let Some(tab_label) = self.tab_labels.get(drag.tab_index) {
+                    let position = Point::new(
+                        drag.overlay_pos.x - drag.tab_offset_x,
+                        drag.overlay_pos.y - drag.tab_offset_y,
+                    );
+
+                    let icon_font = self.font.unwrap_or(iced_fonts::CODICON_FONT);
+                    let text_font = self.text_font.unwrap_or_default();
+
+                    let drag_overlay = DragTabOverlay::new(
+                        tab_label.clone(),
+                        position,
+                        drag.tab_size,
+                        &self.class,
+                        (icon_font, self.icon_size),
+                        (text_font, self.text_size),
+                        self.close_size,
+                        self.label_spacing,
+                        self.padding,
+                        self.tab_width,
+                        self.height,
+                        self.on_close.is_some(),
+                        self.position,
+                    );
+
+                    return Some(overlay::Element::new(Box::new(drag_overlay)));
+                }
+            }
+        }
+
+        // Tooltip overlay (only when not dragging).
         let (tooltip_index, cursor_pos) = {
-            let content_state: &tab::TabBarContentState = state
-                .children
-                .get(0)?
-                .children
-                .get(0)?
-                .state
-                .downcast_ref::<tab::TabBarContentState>();
-
             let ts = content_state.tooltip.as_ref()?;
-
             if ts.hover_start.elapsed() < self.tooltip_delay {
                 return None;
             }
