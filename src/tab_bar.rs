@@ -19,17 +19,11 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-/// The default icon size.
 const DEFAULT_ICON_SIZE: f32 = 16.0;
-/// The default text size.
 const DEFAULT_TEXT_SIZE: f32 = 16.0;
-/// The default size of the close icon.
 const DEFAULT_CLOSE_SIZE: f32 = 16.0;
-/// The default padding between the tabs.
 const DEFAULT_PADDING: Padding = Padding::new(5.0);
-/// The default spacing around the tabs.
 const DEFAULT_SPACING: Pixels = Pixels::ZERO;
-/// The default spacing between a tab's label and its close button.
 const DEFAULT_LABEL_SPACING: f32 = 4.0;
 /// The default spacing for the embedded scrollbar (when not floating).
 const DEFAULT_SCROLLBAR_SPACING: Pixels = Pixels(4.0);
@@ -78,7 +72,7 @@ where
     tab_labels: Vec<TabLabel>,
     /// The vector containing the indices of the tabs.
     tab_indices: Vec<TabId>,
-    /// The statuses of the [`TabLabel`] and cross
+    /// Per-tab status and close-button hover state.
     tab_statuses: Vec<(Option<Status>, Option<bool>)>,
     /// The function that produces the message when a tab is selected.
     on_select: Arc<dyn Fn(TabId) -> Message>,
@@ -103,7 +97,7 @@ where
     padding: Padding,
     /// The spacing of the tabs of the [`TabBar`].
     spacing: Pixels,
-    /// The spacing between a tab's label content and its close button.
+    /// Spacing between a tab's label content and its close button.
     label_spacing: f32,
     /// The optional icon font of the [`TabBar`].
     font: Option<Font>,
@@ -118,17 +112,17 @@ where
     _renderer: PhantomData<Renderer>,
 }
 
-/// The [`Position`] of the icon relative to text, this enum is only relative if [`TabLabel::IconText`] is used.
+/// Icon position relative to text. Only meaningful when using [`TabLabel::IconText`].
 #[derive(Clone, Copy, Debug, Default)]
 pub enum Position {
-    /// Icon is placed above of the text.
+    /// Icon is placed above the text.
     Top,
-    /// Icon is placed right of the text.
+    /// Icon is placed to the right of the text.
     Right,
-    /// Icon is placed below of the text.
+    /// Icon is placed below the text.
     Bottom,
     #[default]
-    /// Icon is placed left of the text, the default.
+    /// Icon is placed to the left of the text (default).
     Left,
 }
 
@@ -204,9 +198,9 @@ where
     /// Similar to [`new`](Self::new) but with a given vector of [`TabLabel`]s.
     ///
     /// It expects:
-    ///     * a vector of `(TabId, TabLabel)` pairs for the initial tabs.
-    ///     * the function that will be called if a tab is selected by the user.
-    ///         The function receives the id of the selected tab.
+    /// - A vector of `(TabId, TabLabel)` pairs for the initial tabs.
+    /// - The function that will be called if a tab is selected by the user.
+    ///   The function receives the id of the selected tab.
     pub fn with_tab_labels<F>(tab_labels: Vec<(TabId, TabLabel)>, on_select: F) -> Self
     where
         F: 'static + Fn(TabId) -> Message,
@@ -400,7 +394,7 @@ where
         self
     }
 
-    /// Sets the [`Position`] of the Icon next to Text, Only used in [`TabLabel::IconText`]
+    /// Sets the icon position relative to text. Only applies to [`TabLabel::IconText`].
     #[must_use]
     pub fn set_position(mut self, position: Position) -> Self {
         self.position = position;
@@ -417,7 +411,7 @@ where
         self
     }
 
-    /// Sets the class of the input of the [`TabBar`].
+    /// Sets the style class of the [`TabBar`].
     #[must_use]
     pub fn class(mut self, class: impl Into<<Theme as Catalog>::Class<'a>>) -> Self {
         self.class = class.into();
@@ -503,7 +497,6 @@ where
     &mut children[0]
 }
 
-/// Widget implementation for [`TabBar`](TabBar).
 impl<Message, TabId, Theme, Renderer> Widget<Message, Theme, Renderer>
     for TabBar<'_, Message, TabId, Theme, Renderer>
 where

@@ -1,4 +1,4 @@
-// This example demonstrates how to use the tab bar widget
+//! Demonstrates the tab bar widget with interactive controls.
 
 use iced::{
     Alignment, Element,

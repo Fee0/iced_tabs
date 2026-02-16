@@ -25,7 +25,6 @@ use std::sync::{Arc, LazyLock};
 const LAYOUT_SIZE_OFFSET: f32 = 1.0;
 /// Multiplier for close button hit area (larger than icon for easier clicking).
 const CLOSE_HIT_AREA_MULTIPLIER: f32 = 1.3;
-/// SVG bytes for the close (X) icon.
 const CLOSE_SVG: &[u8] = include_bytes!("../assets/close.svg");
 /// Cached SVG handle for the close icon (avoids re-allocating on every draw call).
 static CLOSE_SVG_HANDLE: LazyLock<svg::Handle> =
@@ -33,17 +32,16 @@ static CLOSE_SVG_HANDLE: LazyLock<svg::Handle> =
 /// Minimum mouse movement (in pixels) before a press is considered a drag.
 const DRAG_THRESHOLD: f32 = 5.0;
 
-/// A [`TabLabel`] showing an icon and/or a text on a tab
-/// on a [`TabBar`](super::TabBar).
+/// The content label displayed on a tab in the [`TabBar`](super::TabBar).
 #[derive(Clone, Hash, Debug)]
 pub enum TabLabel {
-    /// A [`TabLabel`] showing only an icon on the tab.
+    /// Only an icon.
     Icon(char),
 
-    /// A [`TabLabel`] showing only a text on the tab.
+    /// Only text.
     Text(String),
 
-    /// A [`TabLabel`] showing an icon and a text on the tab.
+    /// An icon alongside text.
     IconText(char, String),
     // TODO: Support any element as a label.
 }
@@ -101,7 +99,6 @@ pub struct TabBarContentState {
     pub drag: Option<DragState>,
 }
 
-/// Content widget for the tab bar (handles selection/close in content-space for Scrollable).
 pub struct Tab<'a, 'b, Message, TabId, Theme = iced::Theme, Renderer = iced::Renderer>
 where
     Renderer: renderer::Renderer + iced::advanced::text::Renderer,

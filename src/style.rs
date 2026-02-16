@@ -51,9 +51,9 @@ pub struct TabStyle {
     pub border_radius: Radius,
     /// The icon color of the tab labels.
     pub icon_color: Color,
-    /// The background of the closing icon.
+    /// The background of the close icon.
     pub icon_background: Option<Background>,
-    /// How soft/hard the corners of the icon border are.
+    /// Border radius of the close icon.
     pub icon_border_radius: Radius,
     /// The text color of the tab labels.
     pub text_color: Color,
@@ -77,27 +77,25 @@ impl Default for TabStyle {
     }
 }
 
-/// The status of a widget.
-///
-/// Tab bar styling currently uses `Active`, `Hovered`, `Inactive`, and `Dragging`.
+/// The interaction status of a tab, used to select the appropriate style.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
-    /// Currently selected tab
+    /// The currently selected tab.
     Active,
-    /// Currently not selected tab
+    /// A tab that is not selected.
     Inactive,
-    /// Can be pressed and it is being hovered.
+    /// The cursor is hovering over the tab.
     Hovered,
     /// The tab is currently being dragged.
     Dragging,
 }
 
-/// The style function of widget.
+/// A closure that maps a theme and status to a [`Style`].
 pub type StyleFn<'a, Theme, Style> = Box<dyn Fn(&Theme, Status) -> Style + 'a>;
 
 /// The Catalog of a [`TabBar`](crate::TabBar).
 pub trait Catalog {
-    ///Style for the trait to use.
+    /// The style class type.
     type Class<'a>;
 
     /// The default class produced by the [`Catalog`].
@@ -119,7 +117,7 @@ impl Catalog for Theme {
     }
 }
 
-/// The primary theme of a [`TabBar`](crate::TabBar).
+/// The default style for a [`TabBar`](crate::TabBar).
 #[must_use]
 pub fn primary(_theme: &Theme, status: Status) -> Style {
     let mut base = Style::default();
