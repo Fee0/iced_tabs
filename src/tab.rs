@@ -460,7 +460,17 @@ where
             let insert_at = target.min(visual_order.len());
             visual_order.insert(insert_at, dragged_idx);
 
-            // Draw each non-dragged tab at its new visual slot position.
+            // Compute correct visual x positions based on cumulative widths.
+            let start_x = tab_layouts.first().map_or(0.0, |l| l.bounds().x);
+            let spacing = self.spacing.0;
+            let mut visual_positions: Vec<f32> = Vec::with_capacity(visual_order.len());
+            let mut current_x = start_x;
+            for &tab_idx in &visual_order {
+                visual_positions.push(current_x);
+                current_x += tab_layouts[tab_idx].bounds().width + spacing;
+            }
+
+            // Draw each non-dragged tab at its new visual position.
             for (slot, &tab_idx) in visual_order.iter().enumerate() {
                 if tab_idx == dragged_idx {
                     continue;
@@ -473,8 +483,7 @@ where
                     .expect("Should have a status.");
 
                 let original_bounds = tab_layouts[tab_idx].bounds();
-                let slot_bounds = tab_layouts[slot].bounds();
-                let offset_x = slot_bounds.x - original_bounds.x;
+                let offset_x = visual_positions[slot] - original_bounds.x;
 
                 if offset_x.abs() < 0.5 {
                     draw_tab(renderer, tab, tab_status, tab_layouts[tab_idx], &ctx);
