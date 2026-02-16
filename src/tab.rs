@@ -621,7 +621,7 @@ where
                 }
             }
 
-            if tab_status.0.map_or(true, |status| status != current_status)
+            if (tab_status.0 != Some(current_status))
                 || tab_status.1 != is_cross_hovered
             {
                 *tab_status = (Some(current_status), is_cross_hovered);
