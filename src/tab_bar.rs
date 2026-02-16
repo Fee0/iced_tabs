@@ -11,9 +11,8 @@ use iced::advanced::{
 use iced::widget::{Scrollable, container, scrollable, text};
 use iced::{Border, Color, Element, Event, Font, Length, Padding, Pixels, Rectangle, Size};
 
-use crate::status::{Status, StyleFn};
 use crate::style::{Catalog, Style};
-use crate::tab;
+use crate::{tab, Status, StyleFn};
 use crate::tab::TabLabel;
 use iced::mouse::Cursor;
 use std::fmt;

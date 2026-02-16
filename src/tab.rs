@@ -1,6 +1,6 @@
 //! Content widget for [`TabBar`](super::TabBar) (handles selection/close in content-space for Scrollable).
 
-use crate::status::Status;
+use crate::Status;
 use crate::style::Catalog;
 use crate::tab_bar::{Position, ensure_child_tree};
 use iced::advanced::svg;

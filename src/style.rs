@@ -1,6 +1,5 @@
 //! Style and theme for the [`TabBar`](crate::TabBar).
 
-use crate::status::{Status, StyleFn};
 use iced::{Background, Color, Shadow, Theme, border::Radius};
 
 /// Combined style used by the [`TabBar`](crate::TabBar).
@@ -77,6 +76,24 @@ impl Default for TabStyle {
         }
     }
 }
+
+/// The status of a widget.
+///
+/// Tab bar styling currently uses `Active`, `Hovered`, `Inactive`, and `Dragging`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Status {
+    /// Currently selected tab
+    Active,
+    /// Currently not selected tab
+    Inactive,
+    /// Can be pressed and it is being hovered.
+    Hovered,
+    /// The tab is currently being dragged.
+    Dragging,
+}
+
+/// The style function of widget.
+pub type StyleFn<'a, Theme, Style> = Box<dyn Fn(&Theme, Status) -> Style + 'a>;
 
 /// The Catalog of a [`TabBar`](crate::TabBar).
 pub trait Catalog {

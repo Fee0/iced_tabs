@@ -1,4 +1,3 @@
-mod status;
 mod style;
 mod tab;
 mod tab_bar;
