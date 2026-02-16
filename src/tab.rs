@@ -441,21 +441,27 @@ where
                 }
             }
 
-            // Draw the dragged tab floating at the cursor position.
+            // Draw the dragged tab floating at the cursor position on a new
+            // layer so it escapes the scrollable's clip and renders on top.
             if let Some(dragged_layout) = tab_layouts.get(dragged_idx) {
                 let original_bounds = dragged_layout.bounds();
                 let offset_x = drag.current_pos.x - drag.tab_offset_x - original_bounds.x;
                 let offset_y = drag.current_pos.y - original_bounds.center_y();
 
-                renderer.with_translation(iced::Vector::new(offset_x, offset_y), |renderer| {
-                    let dragged_tab = &self.tab_labels[dragged_idx];
-                    let dragged_status = (Some(Status::Dragging), None);
-                    draw_tab(
-                        renderer,
-                        dragged_tab,
-                        &dragged_status,
-                        *dragged_layout,
-                        &ctx,
+                renderer.with_layer(*viewport, |renderer| {
+                    renderer.with_translation(
+                        iced::Vector::new(offset_x, offset_y),
+                        |renderer| {
+                            let dragged_tab = &self.tab_labels[dragged_idx];
+                            let dragged_status = (Some(Status::Dragging), None);
+                            draw_tab(
+                                renderer,
+                                dragged_tab,
+                                &dragged_status,
+                                *dragged_layout,
+                                &ctx,
+                            );
+                        },
                     );
                 });
             }

@@ -164,7 +164,7 @@ pub fn primary(_theme: &Theme, status: Status) -> Style {
             base.tab.border_width = 0.0;
         }
         Status::Active | Status::Dragging => {
-            base.tab.background = Background::Color(Color::from_rgba(0.4, 0.4, 0.4, 0.9));
+            base.tab.background = Background::Color(Color::from_rgb(0.4, 0.4, 0.4));
         }
     }
 
