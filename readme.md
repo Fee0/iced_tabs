@@ -30,13 +30,6 @@ Add `iced_tabs` to your `Cargo.toml`:
 iced_tabs = { git = "https://github.com/Fee0/iced_tabs" }
 ```
 
-If you want to use icon tabs, also add [iced_fonts](https://github.com/iced-rs/iced_fonts) (or supply your own icon
-font):
-
-```toml
-iced_fonts = { version = "0.3", features = ["codicon"] }
-```
-
 ## Quick start
 
 ```rust
