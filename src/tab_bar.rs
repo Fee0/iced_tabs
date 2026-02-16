@@ -519,9 +519,10 @@ where
 
     fn tab_content(&self) -> tab::Tab<'_, 'a, Message, TabId, Theme, Renderer> {
         tab::Tab::new(
-            self.tab_labels.clone(),
-            self.tab_statuses.clone(),
-            self.tab_indices.clone(),
+            &self.tab_labels,
+            &self.tab_statuses,
+            &self.tab_indices,
+            &self.tab_tooltips,
             self.icon_size,
             self.text_size,
             self.close_size,
@@ -541,7 +542,6 @@ where
             Arc::clone(&self.on_select),
             self.on_close.as_ref().map(Arc::clone),
             self.on_reorder.as_ref().map(Arc::clone),
-            self.tab_tooltips.clone(),
             self.tooltip_delay,
             &self.class,
         )
@@ -740,10 +740,11 @@ where
 
         if let Some(wrapper_tree) = state.children.get_mut(0) {
             if let Some(content_tree) = wrapper_tree.children.get_mut(0) {
-                let content_state =
-                    content_tree.state.downcast_mut::<tab::TabBarContentState>();
+                let content_state = content_tree.state.downcast_mut::<tab::TabBarContentState>();
 
-                self.tab_statuses.clone_from(&content_state.tab_statuses);
+                if self.tab_statuses != content_state.tab_statuses {
+                    self.tab_statuses.clone_from(&content_state.tab_statuses);
+                }
 
                 if let Some(tooltip) = &mut content_state.tooltip {
                     if let Some(pos) = cursor.position() {

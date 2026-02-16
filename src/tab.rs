@@ -123,9 +123,10 @@ where
     Theme: Catalog,
     TabId: Eq + Clone,
 {
-    tab_labels: Vec<TabLabel>,
-    tab_statuses: Vec<(Option<Status>, Option<bool>)>,
-    tab_indices: Vec<TabId>,
+    tab_labels: &'a [TabLabel],
+    tab_statuses: &'a [(Option<Status>, Option<bool>)],
+    tab_indices: &'a [TabId],
+    tab_tooltips: &'a [Option<String>],
     icon_size: f32,
     text_size: f32,
     close_size: f32,
@@ -144,7 +145,6 @@ where
     on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
     on_reorder: Option<Arc<dyn Fn(usize, usize) -> Message>>,
     active_tab: usize,
-    tab_tooltips: Vec<Option<String>>,
     tooltip_delay: Duration,
     class: &'a <Theme as Catalog>::Class<'b>,
     _renderer: PhantomData<Renderer>,
@@ -176,9 +176,10 @@ where
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        tab_labels: Vec<TabLabel>,
-        tab_statuses: Vec<(Option<Status>, Option<bool>)>,
-        tab_indices: Vec<TabId>,
+        tab_labels: &'a [TabLabel],
+        tab_statuses: &'a [(Option<Status>, Option<bool>)],
+        tab_indices: &'a [TabId],
+        tab_tooltips: &'a [Option<String>],
         icon_size: f32,
         text_size: f32,
         close_size: f32,
@@ -197,7 +198,6 @@ where
         on_select: Arc<dyn Fn(TabId) -> Message>,
         on_close: Option<Arc<dyn Fn(TabId) -> Message>>,
         on_reorder: Option<Arc<dyn Fn(usize, usize) -> Message>>,
-        tab_tooltips: Vec<Option<String>>,
         tooltip_delay: Duration,
         class: &'a <Theme as Catalog>::Class<'b>,
     ) -> Self {
@@ -273,7 +273,7 @@ where
         .font(font.unwrap_or_default())
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
-        .shaping(text::Shaping::Advanced)
+        .shaping(text::Shaping::Auto)
         .width(Length::Shrink)
 }
 
@@ -292,7 +292,7 @@ where
         .font(font.unwrap_or_default())
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
-        .shaping(text::Shaping::Advanced)
+        .shaping(text::Shaping::Auto)
         .width(Length::Shrink)
 }
 
@@ -322,13 +322,11 @@ where
     let mut label_row = Row::new()
         .push(
             match tab_label {
-                TabLabel::Icon(icon) => Container::new(layout_icon(
-                    icon,
-                    icon_size + LAYOUT_SIZE_OFFSET,
-                    font,
-                ))
-                .align_x(Horizontal::Center)
-                .align_y(Vertical::Center),
+                TabLabel::Icon(icon) => {
+                    Container::new(layout_icon(icon, icon_size + LAYOUT_SIZE_OFFSET, font))
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center)
+                }
                 TabLabel::Text(text) => Container::new(layout_text(
                     text.as_str(),
                     text_size + LAYOUT_SIZE_OFFSET,
@@ -338,7 +336,8 @@ where
                 .align_y(Vertical::Center),
                 TabLabel::IconText(icon, text) => {
                     let icon_el = layout_icon(icon, icon_size + LAYOUT_SIZE_OFFSET, font);
-                    let text_el = layout_text(text.as_str(), text_size + LAYOUT_SIZE_OFFSET, text_font);
+                    let text_el =
+                        layout_text(text.as_str(), text_size + LAYOUT_SIZE_OFFSET, text_font);
                     let (first, second): (
                         Element<'_, Message, Theme, Renderer>,
                         Element<'_, Message, Theme, Renderer>,
@@ -430,8 +429,6 @@ where
         let drag = content_state.drag.as_ref();
         let is_dragging = drag.is_some_and(|d| d.is_dragging);
 
-        let tab_layouts: Vec<_> = layout.children().collect();
-
         let ctx = DrawCtx {
             position: self.position,
             theme,
@@ -443,12 +440,15 @@ where
         };
 
         if !is_dragging {
-            // Normal (non-drag) drawing: each tab at its own layout position.
-            for ((i, tab), tab_layout) in self.tab_labels.iter().enumerate().zip(&tab_layouts) {
+            // Normal (non-drag) drawing: iterate directly without collecting.
+            for ((i, tab), tab_layout) in self.tab_labels.iter().enumerate().zip(layout.children())
+            {
                 let tab_status = self.tab_statuses.get(i).expect("Should have a status.");
-                draw_tab(renderer, tab, tab_status, *tab_layout, &ctx);
+                draw_tab(renderer, tab, tab_status, tab_layout, &ctx);
             }
         } else if let Some(drag) = drag {
+            // Drag path needs random access, so collect into Vec.
+            let tab_layouts: Vec<_> = layout.children().collect();
             let dragged_idx = drag.tab_index;
             let target = compute_drop_index(&tab_layouts, drag.current_pos.x, dragged_idx);
 
@@ -496,7 +496,7 @@ where
 
     fn state(&self) -> tree::State {
         tree::State::new(TabBarContentState {
-            tab_statuses: self.tab_statuses.clone(),
+            tab_statuses: self.tab_statuses.to_vec(),
             drag: None,
             tooltip: None,
         })
@@ -543,7 +543,12 @@ where
         viewport: &Rectangle,
     ) {
         let content_state = state.state.downcast_mut::<TabBarContentState>();
-        content_state.tab_statuses.clone_from(&self.tab_statuses);
+        if content_state.tab_statuses.as_slice() != self.tab_statuses {
+            content_state.tab_statuses.clear();
+            content_state
+                .tab_statuses
+                .extend_from_slice(self.tab_statuses);
+        }
 
         let mut element = Element::new(self.row_element());
         let tab_tree = ensure_child_tree(&mut state.children, &mut element);
@@ -848,7 +853,7 @@ fn draw_tab<Theme, Renderer>(
                     align_x: text::Alignment::Center,
                     align_y: Vertical::Center,
                     line_height: LineHeight::Relative(1.3),
-                    shaping: text::Shaping::Advanced,
+                    shaping: text::Shaping::Auto,
                     wrapping: Wrapping::default(),
                 },
                 Point::new(icon_bounds.center_x(), icon_bounds.center_y()),
@@ -869,7 +874,7 @@ fn draw_tab<Theme, Renderer>(
                     align_x: text::Alignment::Center,
                     align_y: Vertical::Center,
                     line_height: LineHeight::Relative(1.3),
-                    shaping: text::Shaping::Advanced,
+                    shaping: text::Shaping::Auto,
                     wrapping: Wrapping::default(),
                 },
                 Point::new(text_bounds.center_x(), text_bounds.center_y()),
@@ -899,7 +904,7 @@ fn draw_tab<Theme, Renderer>(
                     align_x: text::Alignment::Center,
                     align_y: Vertical::Center,
                     line_height: LineHeight::Relative(1.3),
-                    shaping: text::Shaping::Advanced,
+                    shaping: text::Shaping::Auto,
                     wrapping: Wrapping::default(),
                 },
                 Point::new(icon_bounds.center_x(), icon_bounds.center_y()),
@@ -916,7 +921,7 @@ fn draw_tab<Theme, Renderer>(
                     align_x: text::Alignment::Center,
                     align_y: Vertical::Center,
                     line_height: LineHeight::Relative(1.3),
-                    shaping: text::Shaping::Advanced,
+                    shaping: text::Shaping::Auto,
                     wrapping: Wrapping::default(),
                 },
                 Point::new(text_bounds.center_x(), text_bounds.center_y()),
@@ -1019,7 +1024,7 @@ where
                 align_x: text::Alignment::Left,
                 align_y: Vertical::Top,
                 line_height: iced::advanced::widget::text::LineHeight::Relative(1.3),
-                shaping: text::Shaping::Advanced,
+                shaping: text::Shaping::Auto,
                 wrapping: iced::advanced::widget::text::Wrapping::default(),
             },
         );
@@ -1089,7 +1094,7 @@ where
                 align_x: text::Alignment::Left,
                 align_y: Vertical::Center,
                 line_height: LineHeight::Relative(1.3),
-                shaping: text::Shaping::Advanced,
+                shaping: text::Shaping::Auto,
                 wrapping: Wrapping::default(),
             },
             Point::new(text_bounds.x, text_bounds.center_y()),
@@ -1199,7 +1204,10 @@ where
         let mut node = element.as_widget_mut().layout(&mut tree, renderer, &limits);
 
         // Clamp X so the tab stays within window bounds.
-        let x = self.position.x.clamp(0.0, (bounds.width - self.tab_size.width).max(0.0));
+        let x = self
+            .position
+            .x
+            .clamp(0.0, (bounds.width - self.tab_size.width).max(0.0));
         let y = self.position.y;
 
         node.move_to_mut(Point::new(x, y));
