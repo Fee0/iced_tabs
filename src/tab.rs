@@ -664,10 +664,9 @@ where
         }
 
         // Update tooltip hover tracking.
-        match (&content_state.tooltip, hovered_tab_with_tooltip) {
-            (Some(ts), Some((idx, _pos))) if ts.tab_index == idx => {
-                // Still hovering the same tab -- keep the existing state.
-                // If the delay hasn't elapsed yet, keep requesting redraws.
+        match (&mut content_state.tooltip, hovered_tab_with_tooltip) {
+            (Some(ts), Some((idx, pos))) if ts.tab_index == idx => {
+                ts.cursor_pos = pos;
                 if ts.hover_start.elapsed() < self.tooltip_delay {
                     request_redraw = true;
                 }

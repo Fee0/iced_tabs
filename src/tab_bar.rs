@@ -784,7 +784,7 @@ where
 
         let bar_bounds = layout.bounds();
         let position = Point::new(
-            cursor_pos.x + translation.x,
+            cursor_pos.x,
             bar_bounds.y + bar_bounds.height + translation.y + 4.0,
         );
 
