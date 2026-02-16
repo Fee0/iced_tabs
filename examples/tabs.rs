@@ -25,6 +25,7 @@ fn main() -> iced::Result {
         TabBarExample::view,
     )
     .font(CODICON_FONT_BYTES)
+    .window_size(iced::Size::new(1200.0, 700.0))
     .run()
 }
 
