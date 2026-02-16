@@ -129,7 +129,8 @@ where
     icon_size: f32,
     text_size: f32,
     close_size: f32,
-    label_spacing: f32,
+    close_spacing: f32,
+    icon_spacing: f32,
     padding: Padding,
     spacing: Pixels,
     font: Option<Font>,
@@ -181,7 +182,8 @@ where
         icon_size: f32,
         text_size: f32,
         close_size: f32,
-        label_spacing: f32,
+        close_spacing: f32,
+        icon_spacing: f32,
         padding: Padding,
         spacing: Pixels,
         font: Option<Font>,
@@ -206,7 +208,8 @@ where
             icon_size,
             text_size,
             close_size,
-            label_spacing,
+            close_spacing,
+            icon_spacing,
             padding,
             spacing,
             font,
@@ -236,7 +239,8 @@ where
                     self.icon_size,
                     self.text_size,
                     self.close_size,
-                    self.label_spacing,
+                    self.close_spacing,
+                    self.icon_spacing,
                     self.padding,
                     self.tab_width,
                     self.height,
@@ -301,7 +305,8 @@ pub(crate) fn build_single_tab_row<'a, Message: 'a, Theme: 'a, Renderer: 'a>(
     icon_size: f32,
     text_size: f32,
     close_size: f32,
-    label_spacing: f32,
+    close_spacing: f32,
+    icon_spacing: f32,
     padding: Padding,
     tab_width: Option<f32>,
     height: Length,
@@ -345,12 +350,14 @@ where
                     let inner: Element<'_, Message, Theme, Renderer> = if position.is_vertical() {
                         Column::new()
                             .align_x(Alignment::Center)
+                            .spacing(icon_spacing)
                             .push(first)
                             .push(second)
                             .into()
                     } else {
                         Row::new()
                             .align_y(Alignment::Center)
+                            .spacing(icon_spacing)
                             .push(first)
                             .push(second)
                             .into()
@@ -365,7 +372,7 @@ where
         )
         .align_y(Alignment::Center)
         .padding(padding)
-        .spacing(label_spacing)
+        .spacing(close_spacing)
         .width(tab_width.map_or(Length::Shrink, Length::Fixed));
 
     if has_close {
@@ -1109,7 +1116,8 @@ where
     pub icon_data: (Font, f32),
     pub text_data: (Font, f32),
     pub close_size: f32,
-    pub label_spacing: f32,
+    pub close_spacing: f32,
+    pub icon_spacing: f32,
     pub padding: Padding,
     pub tab_width: Option<f32>,
     pub height: Length,
@@ -1132,7 +1140,8 @@ where
         icon_data: (Font, f32),
         text_data: (Font, f32),
         close_size: f32,
-        label_spacing: f32,
+        close_spacing: f32,
+        icon_spacing: f32,
         padding: Padding,
         tab_width: Option<f32>,
         height: Length,
@@ -1147,7 +1156,8 @@ where
             icon_data,
             text_data,
             close_size,
-            label_spacing,
+            close_spacing,
+            icon_spacing,
             padding,
             tab_width,
             height,
@@ -1171,7 +1181,8 @@ where
                 self.icon_data.1,
                 self.text_data.1,
                 self.close_size,
-                self.label_spacing,
+                self.close_spacing,
+                self.icon_spacing,
                 self.padding,
                 self.tab_width,
                 self.height,

@@ -43,7 +43,8 @@ enum Message {
     IconSizeChanged(f32),
     CloseSizeChanged(f32),
     TabHeightChanged(f32),
-    LabelSpacingChanged(f32),
+    CloseSpacingChanged(f32),
+    IconSpacingChanged(f32),
     ShowCloseButtonToggled(bool),
     ReorderableToggled(bool),
     LabelTypeChanged(LabelTypeChoice),
@@ -153,7 +154,8 @@ struct TabBarExample {
     icon_size: f32,
     close_size: f32,
     tab_height: f32,
-    label_spacing: f32,
+    close_spacing: f32,
+    icon_spacing: f32,
     show_close_button: bool,
     reorderable: bool,
     label_type: LabelTypeChoice,
@@ -175,7 +177,8 @@ impl Default for TabBarExample {
             icon_size: 16.0,
             close_size: 16.0,
             tab_height: 35.0,
-            label_spacing: 15.0,
+            close_spacing: 15.0,
+            icon_spacing: 0.0,
             show_close_button: true,
             reorderable: true,
             label_type: LabelTypeChoice::default(),
@@ -237,7 +240,8 @@ impl TabBarExample {
             Message::IconSizeChanged(v) => self.icon_size = v,
             Message::CloseSizeChanged(v) => self.close_size = v,
             Message::TabHeightChanged(v) => self.tab_height = v,
-            Message::LabelSpacingChanged(v) => self.label_spacing = v,
+            Message::CloseSpacingChanged(v) => self.close_spacing = v,
+            Message::IconSpacingChanged(v) => self.icon_spacing = v,
 
             // Toggles
             Message::ShowCloseButtonToggled(v) => self.show_close_button = v,
@@ -374,11 +378,18 @@ impl TabBarExample {
                 Message::TabHeightChanged,
             ))
             .push(slider_control(
-                "Label spacing",
-                self.label_spacing,
+                "Close spacing",
+                self.close_spacing,
                 0.0,
                 30.0,
-                Message::LabelSpacingChanged,
+                Message::CloseSpacingChanged,
+            ))
+            .push(slider_control(
+                "Icon spacing",
+                self.icon_spacing,
+                0.0,
+                30.0,
+                Message::IconSpacingChanged,
             ))
             .push(slider_control(
                 "Tooltip delay",
@@ -416,7 +427,8 @@ impl TabBarExample {
             .icon_size(self.icon_size)
             .close_size(self.close_size)
             .height(self.tab_height)
-            .label_spacing(self.label_spacing)
+            .close_spacing(self.close_spacing)
+            .icon_spacing(self.icon_spacing)
             .set_position(self.icon_position.into())
             .scroll_mode(self.scroll_mode)
             .tooltip_delay(Duration::from_millis(self.tooltip_delay_ms as u64));

@@ -27,7 +27,8 @@ const DEFAULT_TEXT_SIZE: f32 = 16.0;
 const DEFAULT_CLOSE_SIZE: f32 = 16.0;
 const DEFAULT_PADDING: Padding = Padding::new(5.0);
 const DEFAULT_SPACING: Pixels = Pixels::ZERO;
-const DEFAULT_LABEL_SPACING: f32 = 4.0;
+const DEFAULT_CLOSE_SPACING: f32 = 4.0;
+const DEFAULT_ICON_SPACING: f32 = 0.0;
 const DEFAULT_DRAG_THRESHOLD: f32 = 5.0;
 /// The default spacing for the scrollbar below the tabs (when not floating).
 const DEFAULT_SCROLLBAR_SPACING: Pixels = Pixels(4.0);
@@ -108,7 +109,9 @@ where
     /// The spacing of the tabs of the [`TabBar`].
     spacing: Pixels,
     /// Spacing between a tab's label content and its close button.
-    label_spacing: f32,
+    close_spacing: f32,
+    /// Spacing between the icon and text in [`TabLabel::IconText`] mode.
+    icon_spacing: f32,
     /// The optional icon font of the [`TabBar`].
     font: Option<Font>,
     /// The optional text font of the [`TabBar`].
@@ -237,7 +240,8 @@ where
             close_size: DEFAULT_CLOSE_SIZE,
             padding: DEFAULT_PADDING,
             spacing: DEFAULT_SPACING,
-            label_spacing: DEFAULT_LABEL_SPACING,
+            close_spacing: DEFAULT_CLOSE_SPACING,
+            icon_spacing: DEFAULT_ICON_SPACING,
             font: None,
             text_font: None,
             class: <Theme as Catalog>::default(),
@@ -412,8 +416,17 @@ where
 
     /// Sets the spacing between a tab's label content and its close button.
     #[must_use]
-    pub fn label_spacing(mut self, label_spacing: f32) -> Self {
-        self.label_spacing = label_spacing;
+    pub fn close_spacing(mut self, close_spacing: f32) -> Self {
+        self.close_spacing = close_spacing;
+        self
+    }
+
+    /// Sets the spacing between the icon and text in [`TabLabel::IconText`] mode.
+    ///
+    /// Has no effect when using [`TabLabel::Icon`] or [`TabLabel::Text`].
+    #[must_use]
+    pub fn icon_spacing(mut self, icon_spacing: f32) -> Self {
+        self.icon_spacing = icon_spacing;
         self
     }
 
@@ -512,7 +525,8 @@ where
             self.icon_size,
             self.text_size,
             self.close_size,
-            self.label_spacing,
+            self.close_spacing,
+            self.icon_spacing,
             self.padding,
             self.spacing,
             self.font,
@@ -804,7 +818,8 @@ where
                         (icon_font, self.icon_size),
                         (text_font, self.text_size),
                         self.close_size,
-                        self.label_spacing,
+                        self.close_spacing,
+                        self.icon_spacing,
                         self.padding,
                         self.tab_width,
                         self.height,
