@@ -3,7 +3,10 @@
 A feature-rich tab bar widget for [iced](https://github.com/iced-rs/iced) GUI applications, based
 on [iced_aw](https://github.com/iced-rs/iced_aw)'s tab bar with additional features.
 
-[![Watch the video](https://raw.githubusercontent.com/Fee0/iced_tabs/main/assets/thumbnail.png)](https://raw.githubusercontent.com/Fee0/iced_tabs/main/assets/video.gif)
+
+<div align="center">
+<img alt="Icebreaker" src="assets/video.gif" width="90%">
+</div>
 
 ## Features
 
