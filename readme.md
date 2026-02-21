@@ -5,7 +5,7 @@ on [iced_aw](https://github.com/iced-rs/iced_aw)'s tab bar with additional featu
 
 
 <div align="center">
-<img alt="Icebreaker" src="assets/video.gif" width="90%">
+<img src="assets/video.gif" width="90%">
 </div>
 
 ## Features
