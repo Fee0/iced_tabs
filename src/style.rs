@@ -141,7 +141,7 @@ impl Catalog for Theme {
     type Class<'a> = StyleFn<'a, Self, Style>;
 
     fn default<'a>() -> Self::Class<'a> {
-        Box::new(primary)
+        Box::new(basic)
     }
 
     fn style(&self, class: &Self::Class<'_>, status: Status) -> Style {
@@ -151,7 +151,52 @@ impl Catalog for Theme {
 
 /// The default style for a [`TabBar`](crate::TabBar).
 #[must_use]
-pub fn primary(_theme: &Theme, status: Status) -> Style {
+pub fn basic(theme: &Theme, status: Status) -> Style {
+    let mut style = Style::default();
+    let extended = theme.extended_palette();
+    let bg = &extended.background;
+    let primary = &extended.primary;
+
+    // Bar styling based on the theme background.
+    style.bar.background = Some(Background::Color(bg.weak.color));
+    style.bar.border_color = Some(bg.strong.color);
+    style.bar.border_width = 1.0;
+
+    // Tooltip styling uses stronger background for contrast.
+    style.tooltip.background = Background::Color(bg.strong.color);
+    style.tooltip.text_color = bg.strong.text;
+    style.tooltip.border_color = bg.stronger.color;
+
+    // Tab colors depend on interaction state, but follow the theme palette.
+    match status {
+        Status::Inactive => {
+            style.tab.background = Background::Color(bg.weakest.color);
+            style.tab.text_color = bg.weakest.text;
+            style.tab.icon_color = style.tab.text_color;
+            style.tab.border_color = bg.weak.color;
+            style.tab.border_width = 0.0;
+        }
+        Status::Hovered => {
+            style.tab.background = Background::Color(bg.weaker.color);
+            style.tab.text_color = bg.weaker.text;
+            style.tab.icon_color = style.tab.text_color;
+            style.tab.border_color = bg.weak.color;
+            style.tab.border_width = 0.0;
+        }
+        Status::Active | Status::Dragging => {
+            style.tab.background = Background::Color(primary.strong.color);
+            style.tab.text_color = primary.strong.text;
+            style.tab.icon_color = style.tab.text_color;
+            style.tab.border_color = primary.strong.color;
+            style.tab.border_width = 1.0;
+        }
+    }
+
+    style
+}
+
+#[must_use]
+pub fn cool(_theme: &Theme, status: Status) -> Style {
     let mut base = Style::default();
 
     match status {

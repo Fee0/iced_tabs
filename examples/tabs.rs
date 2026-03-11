@@ -8,7 +8,7 @@ use std::fmt;
 use std::time::Duration;
 
 use iced_fonts::CODICON_FONT_BYTES;
-use iced_tabs::{Position, ScrollMode, TabBar, TabLabel};
+use iced_tabs::{Position, ScrollMode, TabBar, TabLabel, cool};
 
 const TAB_ICONS: &[char] = &[
     '\u{eb51}', // gear
@@ -432,7 +432,8 @@ impl TabBarExample {
             .icon_spacing(self.icon_spacing)
             .set_position(self.icon_position.into())
             .scroll_mode(self.scroll_mode)
-            .tooltip_delay(Duration::from_millis(self.tooltip_delay_ms as u64));
+            .tooltip_delay(Duration::from_millis(self.tooltip_delay_ms as u64))
+            .style(cool);
 
         if self.show_close_button {
             tab_bar = tab_bar.on_close(Message::TabClosed);
