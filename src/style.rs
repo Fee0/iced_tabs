@@ -157,17 +157,14 @@ pub fn basic(theme: &Theme, status: Status) -> Style {
     let bg = &extended.background;
     let primary = &extended.primary;
 
-    // Bar styling based on the theme background.
     style.bar.background = Some(Background::Color(bg.weak.color));
     style.bar.border_color = Some(bg.strong.color);
     style.bar.border_width = 1.0;
 
-    // Tooltip styling uses stronger background for contrast.
     style.tooltip.background = Background::Color(bg.strong.color);
     style.tooltip.text_color = bg.strong.text;
     style.tooltip.border_color = bg.stronger.color;
 
-    // Tab colors depend on interaction state, but follow the theme palette.
     match status {
         Status::Inactive => {
             style.tab.background = Background::Color(bg.weakest.color);
