@@ -141,7 +141,7 @@ impl Catalog for Theme {
     type Class<'a> = StyleFn<'a, Self, Style>;
 
     fn default<'a>() -> Self::Class<'a> {
-        Box::new(basic)
+        Box::new(primary)
     }
 
     fn style(&self, class: &Self::Class<'_>, status: Status) -> Style {
@@ -151,7 +151,7 @@ impl Catalog for Theme {
 
 /// The default style for a [`TabBar`](crate::TabBar).
 #[must_use]
-pub fn basic(theme: &Theme, status: Status) -> Style {
+pub fn primary(theme: &Theme, status: Status) -> Style {
     let mut style = Style::default();
     let extended = theme.extended_palette();
     let bg = &extended.background;
