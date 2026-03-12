@@ -37,7 +37,7 @@ iced_tabs = { git = "https://github.com/Fee0/iced_tabs" }
 
 ```rust
 use std::time::Duration;
-use iced_tabs::{TabBar, TabLabel, Position, ScrollMode};
+use iced_tabs::{TabBar, TabLabel, Position, ScrollMode, cool};
 
 #[derive(Debug, Clone)]
 enum Message {
@@ -60,6 +60,7 @@ fn view(active: &usize) -> TabBar<'_, Message, usize> {
         .height(35.0)
         .scroll_mode(ScrollMode::Floating)
         .tooltip_delay(Duration::from_millis(500))
+        .style(cool)
 }
 ```
 
